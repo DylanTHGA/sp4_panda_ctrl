@@ -25,7 +25,7 @@ MoveGroupInterface *hand_ptr = nullptr;
 // Sweet Picker Standard Topics welche beim OMx verwendet wurde  
 ros::Publisher feedback_pub;             // publishes the "Fertig" Nachricht
 string feedback_topic = "/rueckmeldung";
-string pose_input_topic = "/sweet_pose_translated";
+string pose_input_topic = "/robot/pose";
 
 // Tischoberfläche mit berücksichtigung der Greiferfinger
 double table_z = 0.79 + 0.118;  
@@ -56,18 +56,25 @@ vector<double> observer_joints =
         45.0 * M_PI / 180.0};
 
 // ----------------- Task Queue  -----------------
-queue<geometry_msgs::Point> pick_queue;
+struct PickJob
+{
+  geometry_msgs:: Point pos; //x,y,z 
+  double tcp_yaw_deg;   //Winkel des Greifers um die Z-Achse 
+  bool has_tcp_yaw;  //True wenn Winkel angepasst werden soll 
+};
+
+queue<PickJob> pick_queue;
 mutex pick_queue_mtx;
 
 // Thread-sichere Warteschlange für Pick-Aufgaben
-void enqueuePick(const geometry_msgs::Point &pt)
+void enqueuePick(const PickJob &pt)
 {
   lock_guard<mutex> lk(pick_queue_mtx);
   pick_queue.push(pt);
 }
 
 // Versucht eine Pick-Aufgabe aus der Warteschlange zu verarbeiten
-bool tryDequeuePick(geometry_msgs::Point &out)
+bool tryDequeuePick(PickJob &out)
 {
   lock_guard<mutex> lk(pick_queue_mtx);
   if (pick_queue.empty())
@@ -157,11 +164,30 @@ void publishFeedback(const string &text)
   feedback_pub.publish(msg);
 }
 
-// ----------------- Pick Routine -----------------
-void pickRoutine(const geometry_msgs::Point &p_xy)
+bool setWristYawDeg(double angle_deg)
 {
-  const double x = p_xy.x;
-  const double y = p_xy.y;
+  auto st = arm_ptr->getCurrentState();
+  const auto *jmg = st->getJointModelGroup("panda_arm");
+  vector<double> joints;
+  st->copyJointGroupPositions(jmg, joints);
+  joints[6] = angle_deg * M_PI / 180.0; // Set wrist joint
+  arm_ptr->setJointValueTarget(joints);
+  MoveGroupInterface::Plan plan;
+  if (!(arm_ptr->plan(plan) ==
+            moveit::planning_interface::MoveItErrorCode::SUCCESS &&
+        arm_ptr->execute(plan)))
+  {
+    ROS_WARN("Failed setting wrist yaw to %.1f°", angle_deg);
+    return false;
+  }
+  ROS_INFO("Wrist yaw set to %.1f deg", angle_deg);
+  return true;
+}
+// ----------------- Pick Routine -----------------
+void pickRoutine(const PickJob &p_xy)
+{
+  const double x = p_xy.pos.x;
+  const double y = p_xy.pos.y;
 
   // Erhöhte Postion des zugreifenden Objekts
   geometry_msgs::Pose above_pose;
@@ -191,6 +217,15 @@ void pickRoutine(const geometry_msgs::Point &p_xy)
     ROS_WARN("[auto_pick] Failed move above");
     //publishFeedback("FAILED: move_above");
     return;
+  }
+  if (p_xy.has_tcp_yaw)
+  {
+    ROS_INFO("[auto_pick] Applying TCP yaw %.1f deg", p_xy.tcp_yaw_deg);
+    if (!setWristYawDeg(p_xy.tcp_yaw_deg))
+    {
+      ROS_WARN("[auto_pick] Failed to apply TCP yaw");
+      // we still try to continue
+    }
   }
   //  ---- Pick Sequence 2 ----
   ROS_INFO("[auto_pick] Opening gripper...");
@@ -257,17 +292,11 @@ void pickRoutine(const geometry_msgs::Point &p_xy)
     return;
   }
   // Publish Fertig Nachricht auf feedback_topic
-  publishFeedback("FERTIG");
-}
-
-// Wrapper, um kompatibel mit dem bisherigen CLI-Callback zu bleiben
-void pickCallback(const geometry_msgs::Point::ConstPtr &msg)
-{
-  pickRoutine(*msg);
+  publishFeedback("Süßigkeit dargereicht"); //Süigkeit dargereicht laut SP3 Architektur
 }
 
 // ----------------- SP4 Schnittstellen -----------------
-// Abbonieren des sweet_pose_translated topic zum starten der Pick_Routine nach auslesen der NAchricht
+// Abbonieren des /robot/pose topic zum starten der Pick_Routine nach auslesen der Nachricht
 void sp4PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
   //Funktionale Erweiterung: Header verwenden um zu unterscheiden ob der Auftrag vom
@@ -289,19 +318,24 @@ void sp4PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
   //TODO: PoseCallbasck anpassen um den Winkel zu berücksichtigen - evtl. in pickRoutine integrieren
 
   ROS_INFO(
-      "[SP4] Received /sweet_pose_translated -> robot (m): x=%.3f y=%.3f ; Orientation angle=%.1f°",
+      "[SP4] Received /robot/pose -> robot (m): x=%.3f y=%.3f ; Orientation angle=%.1f°",
       target_xy.position.x, target_xy.position.y, angle_deg);
-  enqueuePick(target_xy.position);
+      PickJob p_xy;
+      p_xy.pos = target_xy.position;
+      p_xy.tcp_yaw_deg = angle_deg;
+      p_xy.has_tcp_yaw = true;
+  // Direkt in die Pick-Queue einreihen
+  enqueuePick(p_xy);
 }
 
 // Timer Callback zur Abarbeitung der Pick-Queue
 void processQueueTimerCb(const ros::TimerEvent &)
 {
-  geometry_msgs::Point job;
+  PickJob job;
   if (tryDequeuePick(job))
   {
-    ROS_INFO("[QUEUE] Start pick job at x=%.3f y=%.3f", job.x, job.y);
-    publishFeedback("BUSY");
+    ROS_INFO("[QUEUE] Start pick job at x=%.3f y=%.3f", job.pos.x, job.pos.y);
+    publishFeedback("Verarbeitung des Pick-Auftrags gestartet");
     pickRoutine(job);
   }
 }
@@ -401,22 +435,7 @@ int main(int argc, char **argv)
         ROS_WARN("INPUT_ERROR: turn_hand angle_deg");
         continue;
       }
-      auto st = arm.getCurrentState();
-      const auto *jmg = st->getJointModelGroup("panda_arm");
-      vector<double> joints;
-      st->copyJointGroupPositions(jmg, joints);
-      joints[6] = angele_deg * M_PI / 180.0; // Setzen des Handgelenk-Joints
-      arm.setJointValueTarget(joints);
-      MoveGroupInterface::Plan plan;
-      if (!(arm.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS &&
-            arm.execute(plan)))
-      {
-        ROS_WARN("Planning failed");
-      }
-      else
-      {
-        ROS_INFO("Hand turned to %.1f°", angele_deg);
-      }
+     setWristYawDeg(angele_deg );
     }
     else if (cmd == "set_joints")
     {
@@ -513,17 +532,32 @@ int main(int argc, char **argv)
     else if (cmd == "pick")
     {
       double x, y;
+      double angle_deg;
+      bool got_angle = false;
       if (!(iss >> x >> y))
       {
-        ROS_WARN("INPUT_ERROR: pick x y");
+        ROS_WARN("INPUT_ERROR: pick x y [angle_deg]");
         continue;
       }
-      geometry_msgs::Point pt;
-      pt.x = x;
-      pt.y = y;
-      pt.z = table_z;
-      // Statt direkter Ausführung in die Queue legen
-      enqueuePick(pt);
+      if (iss >> angle_deg)
+      {
+        got_angle = true;
+      }
+      PickJob p_xy;
+      p_xy.pos.x = x;
+      p_xy.pos.y = y;
+      p_xy.pos.z = table_z;
+      if (got_angle)
+      {
+        p_xy.tcp_yaw_deg = angle_deg;
+        p_xy.has_tcp_yaw = true;
+      }
+      else
+      {
+        p_xy.has_tcp_yaw = false;
+      }
+
+      enqueuePick(p_xy);
     }
     else if (cmd == "quit")
     {

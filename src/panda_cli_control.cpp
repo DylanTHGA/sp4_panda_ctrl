@@ -170,7 +170,18 @@ bool setWristYawDeg(double angle_deg)
   const auto *jmg = st->getJointModelGroup("panda_arm");
   vector<double> joints;
   st->copyJointGroupPositions(jmg, joints);
-  joints[6] = angle_deg * M_PI / 180.0; // Set wrist joint
+  double current_angle = joints[6] * 180.0 / M_PI;
+  double target_deg = angle_deg;
+  double diff = target_deg - current_angle;
+  if(diff > 180.0)
+  {
+    target_deg -= 360.0;
+  }
+  else if(diff < -180.0)
+  {
+    target_deg += 360.0;
+  }
+  joints[6] = target_deg * M_PI / 180.0; // Set wrist joint
   arm_ptr->setJointValueTarget(joints);
   MoveGroupInterface::Plan plan;
   if (!(arm_ptr->plan(plan) ==
@@ -184,10 +195,10 @@ bool setWristYawDeg(double angle_deg)
   return true;
 }
 // ----------------- Pick Routine -----------------
-void pickRoutine(const PickJob &p_xy)
+void pickRoutine(const PickJob &object_data)
 {
-  const double x = p_xy.pos.x;
-  const double y = p_xy.pos.y;
+  const double x = object_data.pos.x;
+  const double y = object_data.pos.y;
 
   // Erhöhte Postion des zugreifenden Objekts
   geometry_msgs::Pose above_pose;
@@ -203,7 +214,7 @@ void pickRoutine(const PickJob &p_xy)
   above_place_pose.position.y = -0.6;
   above_place_pose.position.z = hover_z;
   above_place_pose.orientation = default_orientation;
-
+ 
   // Eigentliche Position des zu greifenden Objekts
   geometry_msgs::Pose grasp_pose = above_pose;
   grasp_pose.position.z = table_z;
@@ -218,14 +229,16 @@ void pickRoutine(const PickJob &p_xy)
     //publishFeedback("FAILED: move_above");
     return;
   }
-  if (p_xy.has_tcp_yaw)
+  if (object_data.has_tcp_yaw)
   {
-    ROS_INFO("[auto_pick] Applying TCP yaw %.1f deg", p_xy.tcp_yaw_deg);
-    if (!setWristYawDeg(p_xy.tcp_yaw_deg))
+    ROS_INFO("[auto_pick] Applying TCP yaw %.1f deg", object_data.tcp_yaw_deg);
+    if (!setWristYawDeg(object_data.tcp_yaw_deg))
     {
       ROS_WARN("[auto_pick] Failed to apply TCP yaw");
-      // we still try to continue
     }
+    // Nach dem Anpassen des Handgelenk-Winkels die aktuelle Orientierung übernehmen
+    auto current_orientation = arm_ptr->getCurrentPose().pose.orientation;
+    grasp_pose.orientation = current_orientation;
   }
   //  ---- Pick Sequence 2 ----
   ROS_INFO("[auto_pick] Opening gripper...");
@@ -245,7 +258,7 @@ void pickRoutine(const PickJob &p_xy)
   ROS_INFO("[auto_pick] Closing gripper...");
   hand_ptr->setNamedTarget("close");
   hand_ptr->move();
-
+  
   ROS_INFO("[auto_pick] Lifting back to hover...");
   arm_ptr->setPoseTarget(above_pose);
   MoveGroupInterface::Plan plan_lift;
@@ -299,9 +312,6 @@ void pickRoutine(const PickJob &p_xy)
 // Abbonieren des /robot/pose topic zum starten der Pick_Routine nach auslesen der Nachricht
 void sp4PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
-  //Funktionale Erweiterung: Header verwenden um zu unterscheiden ob der Auftrag vom
-  //Jackal kommt: Entweder mit Pick Vorgang warten bis der Roboter an der Abholposition ist
-  //oder Pick Vorgang starten und Süßigkeit halten solange der Roboter sich zur Abholposition bewegt
   geometry_msgs::Pose target_xy;
   target_xy.position.x = msg->pose.position.x;
   target_xy.position.y = msg->pose.position.y;
@@ -318,14 +328,14 @@ void sp4PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
   //TODO: PoseCallbasck anpassen um den Winkel zu berücksichtigen - evtl. in pickRoutine integrieren
 
   ROS_INFO(
-      "[SP4] Received /robot/pose -> robot (m): x=%.3f y=%.3f ; Orientation angle=%.1f°",
+      "[SP4] Received /robot/pose -> robot (m): x=%.3f y=%.3f; Orientation angle=%.1f°",
       target_xy.position.x, target_xy.position.y, angle_deg);
-      PickJob p_xy;
-      p_xy.pos = target_xy.position;
-      p_xy.tcp_yaw_deg = angle_deg;
-      p_xy.has_tcp_yaw = true;
+      PickJob object_data;
+      object_data.pos = target_xy.position;
+      object_data.tcp_yaw_deg = angle_deg;
+      object_data.has_tcp_yaw = true;
   // Direkt in die Pick-Queue einreihen
-  enqueuePick(p_xy);
+  enqueuePick(object_data);
 }
 
 // Timer Callback zur Abarbeitung der Pick-Queue
@@ -435,7 +445,7 @@ int main(int argc, char **argv)
         ROS_WARN("INPUT_ERROR: turn_hand angle_deg");
         continue;
       }
-     setWristYawDeg(angele_deg );
+     setWristYawDeg(angele_deg);
     }
     else if (cmd == "set_joints")
     {
@@ -543,21 +553,21 @@ int main(int argc, char **argv)
       {
         got_angle = true;
       }
-      PickJob p_xy;
-      p_xy.pos.x = x;
-      p_xy.pos.y = y;
-      p_xy.pos.z = table_z;
+      PickJob object_data;
+      object_data.pos.x = x;
+      object_data.pos.y = y;
+      object_data.pos.z = table_z;
       if (got_angle)
       {
-        p_xy.tcp_yaw_deg = angle_deg;
-        p_xy.has_tcp_yaw = true;
+        object_data.tcp_yaw_deg = angle_deg;
+        object_data.has_tcp_yaw = true;
       }
       else
       {
-        p_xy.has_tcp_yaw = false;
+        object_data.has_tcp_yaw = false;
       }
 
-      enqueuePick(p_xy);
+      enqueuePick(object_data);
     }
     else if (cmd == "quit")
     {

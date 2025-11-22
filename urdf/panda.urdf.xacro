@@ -3,11 +3,11 @@
 
   <!-- === INCLUDE NECESSARY XACRO FILES === -->
   <xacro:include filename="$(find franka_description)/robots/common/franka_robot.xacro"/>
-  <xacro:include filename="$(find franka_description)/urdf/traffic_light.urdf.xacro"/>
-  <xacro:include filename="$(find franka_description)/urdf/table.urdf.xacro"/>
-  <xacro:include filename="$(find franka_description)/urdf/lidar_sensor.urdf.xacro"/>
-  <xacro:include filename="$(find franka_description)/urdf/realsense_d435.urdf.xacro"/>
-  <xacro:include filename="$(find franka_description)/urdf/wall.urdf.xacro"/>
+  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/traffic_light.urdf.xacro"/>
+  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/table.urdf.xacro"/>
+  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/lidar_sensor.urdf.xacro"/>
+  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/realsense_d435.urdf.xacro"/>
+  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/wall.urdf.xacro"/>
 
   <xacro:arg name="arm_id" default="panda" />
 

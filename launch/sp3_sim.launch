@@ -1,12 +1,13 @@
 <launch>
-  <!-- Originale MoveIt-Gazebo-Demo starten -->
-  <include file="$(find panda_moveit_config)/launch/demo_gazebo.launch"/>
+  <!-- Wrapper vom MoveIt-Gazebo-Demo starten -->
+  <include file="$(find sp3_panda_ctrl)/launch/panda_demo_gazebo.launch"/>
 
   <!-- CLI-Node starten -->
     <node pkg="sp3_panda_ctrl"
           type="panda_cli_control"
           name="panda_cli_control"
           output="screen"
-          respawn="true"
-          respawn_delay="2.0"/>
-</launch>
+          respawn="false"
+          respawn_delay="5.0"
+          launch-prefix="gnome-terminal --tab --"/>
+      </launch>

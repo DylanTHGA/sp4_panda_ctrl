@@ -112,6 +112,7 @@ git submodule update
 #### 3.1 ROS-Abhängigkeiten installieren
 
 ```bash
+cd ~/catkin_ws
 rosdep init  
 rosdep update --include-eol-distros  
 rosdep install --from-paths src --ignore-src --rosdistro noetic -y --skip-keys libfranka  
@@ -122,7 +123,7 @@ rosdep install --from-paths . --ignore-src --rosdistro noetic -y
 
 ```bash
 cd ~/catkin_ws  
-catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/dylan/libfranka/build  
+catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/student/libfranka/build  
 source devel/setup.sh
 ```
 

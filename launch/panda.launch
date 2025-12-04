@@ -1,4 +1,3 @@
-<!-- Wrapper der franka_gazebo/panda.launch Datei -->
 <?xml version="1.0"?>
 <launch>
 

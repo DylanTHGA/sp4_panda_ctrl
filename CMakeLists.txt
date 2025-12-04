@@ -41,10 +41,10 @@ target_link_libraries(panda_cli_control
 )
 
 ## Executable: sp_test_node
-add_executable(sp_test_node
-  src/sp_test_node.cpp
+add_executable(coordinate_translator
+  src/coordinate_translator.cpp
 )
 
-target_link_libraries(sp_test_node
+target_link_libraries(coordinate_translator
   ${catkin_LIBRARIES}
 )

@@ -48,6 +48,7 @@ public:
     feedback_pub = nh_.advertise<std_msgs::String>(feedback_topic, 1, true);
     sub_pose_    = nh_.subscribe(sweet_pose_topic,  1, &PandaCliControl::sp4PoseCallback, this);
     sub_width_   = nh_.subscribe(sweet_width_topic, 1, &PandaCliControl::robotStatusCallback, this);
+    sub_receiver_ = nh_.subscribe(sweet_receiver_topic, 1, &PandaCliControl::receiverCallback, this);
     queue_timer_ = nh_.createTimer(ros::Duration(0.1), &PandaCliControl::processQueueTimerCb, this);
   }
 
@@ -105,7 +106,7 @@ public:
         ROS_WARN("INPUT_ERROR: turn_hand angle_deg");
         return;
       }
-      setWristYawDeg(angle_deg);
+      setWristAngle(angle_deg);
     }
     else if (cmd == "set_joints")
     {
@@ -216,6 +217,8 @@ private:
     double tcp_yaw_deg  {45.0};   // Greifer-Winkel um die Z-Achse
     bool   has_tcp_yaw  {false};  // true, wenn Winkel gesetzt werden soll
     double width_mm     {0.0};    // Breite der Süßigkeit in mm
+    std::string receiver{"default"}; // "default" oder "jackal"
+
   };
 
   //--------------------------------------------------- ROS & MoveIt Member --------------------------------------------------------
@@ -224,14 +227,16 @@ private:
   MoveGroupInterface arm_;
   MoveGroupInterface hand_;
 
-  ros::Publisher  feedback_pub;
-  ros::Subscriber sub_pose_;
-  ros::Subscriber sub_width_;
+  ros::Publisher  feedback_pub;                             // Publisher für die "Fertig" Nachricht
+  ros::Subscriber sub_pose_;                                // Subscriber für die Süßigkeiten-Position
+  ros::Subscriber sub_width_;                               // Subscriber für die Süßigkeiten-Breite
+  ros::Subscriber sub_receiver_;                            // Subscriber für den Empfänger
   ros::Timer      queue_timer_;
 
   std::string feedback_topic    = "/rueckmeldung";          // Topic für die "Fertig" Nachricht
   std::string sweet_pose_topic  = "/sweet_pose_translated"; // Informationen über die übersetzten Koordinaten
   std::string sweet_width_topic = "/robot/status";          // Informationen über die Süßigkeiten-Breite
+  std::string sweet_receiver_topic = "/sp4/receiver";       // Informationen über den Empfänger
 
   //--------------------------------------------------- Konfiguration --------------------------------------------------------
 
@@ -241,27 +246,19 @@ private:
 
   // Default-Orientierung
   geometry_msgs::Quaternion default_orientation;
-
   //--------------------------------------------------- Zustands-Variablen --------------------------------------------------------
 
   // Thread-sichere Pick-Queue
   std::queue<PickJob> pick_queue;
-  std::mutex          pick_queue_mtx;
-
-  // Thread-sichere Objektbreite
-  std::mutex object_width_mtx;
-  double     object_width_mm  = 0.0;
-  bool       has_object_width = false;
-
+  // Mutexes für Thread-Sicherheit
+  std::mutex  pick_queue_mtx;
+  std::mutex  receiver_mtx;
+  std::mutex  object_width_mtx;
+  // Standardwerte für die Süßigkeiten-Breite und Empfänger
+  double      object_width_mm  = 0.0;
+  bool        has_object_width = false;
+  std::string current_receiver = "default";
   //--------------------------------------------------- Hilfsfunktionen ---------------------------------------------------------
-
-  // Publisht die SP4 "Fertig" Nachricht auf dem Feedback Topic
-  void publishFeedback()
-  {
-    std_msgs::String msg;
-    msg.data = "Süßigkeit dargereicht";
-    feedback_pub.publish(msg);
-  }
 
   // Job in die Queue einreihen
   void enqueuePick(const PickJob& job)
@@ -420,8 +417,40 @@ private:
     }
   }
 
+  // Erstellt eine Ablagepose basierend auf dem Empfänger
+  geometry_msgs::Pose makePlacePose(const std::string& receiver, bool above) const
+{
+    geometry_msgs::Pose pose;
+    pose.orientation = default_orientation;
+
+    const bool is_jackal = (receiver == "jackal");
+
+    if (is_jackal)
+    {
+      // TODO: Anpassen dass die Position des Ablagerohrs angefahren wird
+      pose.position.x = 0.0;
+      pose.position.y = -0.7;
+    }
+    else
+    {
+      // bisherige Standard-Ablage
+      pose.position.x = 0.0;
+      pose.position.y = -0.6;
+    }
+
+    if(above)
+    {
+      pose.position.z = hover_z;
+    }
+    else
+    {
+      pose.position.z = grap_z;
+    }
+    return pose;
+  }
+
   // Ändert Joint 7 auf den angegebenen Winkel in Grad
-  bool setWristYawDeg(double angle_deg)
+  bool setWristAngle(double angle_deg)
   {
     auto st = arm_.getCurrentState();
     const auto* jmg = st->getJointModelGroup("panda_arm");
@@ -464,6 +493,13 @@ private:
     }
   }
 
+  // Publisht die SP4 "Fertig" Nachricht auf dem Feedback Topic
+  void publishFeedback()
+  {
+    std_msgs::String msg;
+    msg.data = "Süßigkeit dargereicht";
+    feedback_pub.publish(msg);
+  }
   // Führt die Pick and Place Routine für ein einzelnes Objekt durch
   void pickRoutine(const PickJob& object_data)
   {
@@ -476,14 +512,8 @@ private:
     above_pose.position.z = hover_z;
     above_pose.orientation = default_orientation;
 
-    geometry_msgs::Pose above_place_pose;
-    above_place_pose.position.x = 0.0;
-    above_place_pose.position.y = -0.6;
-    above_place_pose.position.z = hover_z;
-    above_place_pose.orientation = default_orientation;
-
-    geometry_msgs::Pose place_pose = above_place_pose;
-    place_pose.position.z = grap_z;
+    geometry_msgs::Pose above_place_pose = makePlacePose(object_data.receiver, true);
+    geometry_msgs::Pose place_pose       = makePlacePose(object_data.receiver, false);
 
     geometry_msgs::Pose grasp_pose = above_pose;
     grasp_pose.position.z = grap_z;
@@ -498,7 +528,7 @@ private:
     if (object_data.has_tcp_yaw)
     {
       ROS_INFO("[auto_pick] Applying TCP yaw %.1f deg", object_data.tcp_yaw_deg);
-      if (!setWristYawDeg(object_data.tcp_yaw_deg))
+      if (!setWristAngle(object_data.tcp_yaw_deg))
       {
         ROS_WARN("[auto_pick] Failed to apply TCP yaw");
       }
@@ -560,7 +590,6 @@ private:
 
     publishFeedback();
   }
-
   // --------------------------------------------------- SP4 Schnittstellen ---------------------------------------------------------
 
   // Abonnieren des /sweet_pose_translated Topic zum Starten der Pick-Routine
@@ -599,6 +628,10 @@ private:
     object_data.tcp_yaw_deg = angle_deg;
     object_data.has_tcp_yaw = true;
     object_data.width_mm    = width_mm;
+    {
+      std::lock_guard<std::mutex> lk(receiver_mtx);
+      object_data.receiver = current_receiver;
+    }
 
     enqueuePick(object_data);
   }
@@ -622,6 +655,28 @@ private:
     }
 
     ROS_INFO("[SP4] /robot/status: Breite aktualisiert auf %.1f mm", width_mm);
+  }
+
+  // Abonnieren des /sp4/receiver Topic zum Aktualisieren des Empfängers
+  void receiverCallback(const std_msgs::String::ConstPtr& msg)
+  {
+    std::string receiver;
+
+    if (msg->data.empty())
+    {
+      receiver = "default";
+    }
+    else
+    {
+      receiver = msg->data;
+    }
+
+    {
+      std::lock_guard<std::mutex> lk(receiver_mtx);
+      current_receiver = receiver;
+    }
+
+    ROS_INFO("[SP4] /sp4/receiver: receiver updated to '%s'", receiver.c_str());
   }
 
   // --------------------------------------------------- CLI Hilfe ---------------------------------------------------------

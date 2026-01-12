@@ -71,4 +71,23 @@
     <child link="table_top"/>
     <origin xyz="0 0 -0.79" rpy="0 0 0"/>  </joint>
 
+  <!-- === VISUAL ONLY WORK SURFACE (NO COLLISION) === -->
+  <link name="work_surface_visual">
+    <visual>
+      <origin xyz="0.4 0.0 0.791" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.22 0.30 0.002"/>
+      </geometry>
+      <material name="work_surface_blue">
+        <color rgba="0.1 0.4 0.9 0.35"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="work_surface_visual_joint" type="fixed">
+    <parent link="table_top"/>
+    <child link="work_surface_visual"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
 </robot>

@@ -7,7 +7,6 @@
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/robot_state/robot_state.h>
 #include <mutex>
-#include <queue>
 #include <ros/ros.h>
 #include <sstream>
 #include <std_msgs/String.h>
@@ -20,7 +19,6 @@ using moveit::planning_interface::MoveGroupInterface;
 #define DEG2RAD (M_PI / 180.0)
 #define RAD2DEG (180.0 / M_PI)
 
-#define PANDA_SIM_OFFSET_Z 0.79
 
 // Umrechnungsfunktionen Grad <-> Radiant (Namen beibehalten)
 inline double deg2rad(double deg) { return deg * DEG2RAD; }
@@ -36,10 +34,11 @@ public:
   {
     // MoveIt-Basiskonfiguration
     arm_.setPlanningTime(10.0);
-    arm_.setMaxVelocityScalingFactor(1.0);
-    hand_.setMaxVelocityScalingFactor(1.0);
+    arm_.setMaxVelocityScalingFactor(0.2);
+    hand_.setMaxVelocityScalingFactor(0.2);
 
     initializeDefaultOrientation();
+    loadZOffset();
     moveToStartPosition();
     moveToObserverPosition();
     printHelp();
@@ -49,8 +48,8 @@ public:
     sub_pose_    = nh_.subscribe(sweet_pose_topic,  1, &PandaCliControl::sp4PoseCallback, this);
     sub_width_   = nh_.subscribe(sweet_width_topic, 1, &PandaCliControl::robotStatusCallback, this);
     sub_receiver_ = nh_.subscribe(sweet_receiver_topic, 1, &PandaCliControl::receiverCallback, this);
-    queue_timer_ = nh_.createTimer(ros::Duration(0.1), &PandaCliControl::processQueueTimerCb, this);
-  }
+    sub_state_ = nh_.subscribe(state_topic, 1, &PandaCliControl::stateCallback, this);
+}
 
   // Verarbeitet die eingegebene CLI-Zeile zum Ausführen von Befehlen
   void handleCommands(const std::string& line)
@@ -58,6 +57,19 @@ public:
     std::istringstream iss(line);
     std::string cmd;
     iss >> cmd;
+
+    // "stop" immer erlauben, auch während der Pick-Routine
+    if (cmd == "stop")
+    {
+      stopMovement();
+      return;
+    }
+    //Blockiern von Eingaben während Pick-Routine
+    if (pick_running)
+    {
+      ROS_WARN("[CLI] Command ignored: pick routine already running");
+      return;
+    }
 
     if (cmd == "help")
     {
@@ -149,10 +161,6 @@ public:
     {
       closeGripper();
     }
-    else if (cmd == "stop")
-    {
-      stopMovement();
-    }
     else if (cmd == "observerPos")
     {
       moveToObserverPosition();
@@ -196,7 +204,8 @@ public:
         object_data.has_tcp_yaw = false;
       }
 
-      enqueuePick(object_data);
+      pick_running = true;
+      pickRoutine(object_data);
     }
     else if (cmd == "quit")
     {
@@ -217,6 +226,7 @@ private:
     double tcp_yaw_deg  {45.0};   // Greifer-Winkel um die Z-Achse
     bool   has_tcp_yaw  {false};  // true, wenn Winkel gesetzt werden soll
     double width_mm     {0.0};    // Breite der Süßigkeit in mm
+    bool   has_width    {false};  // true, wenn Breite gesetzt wurde
     std::string receiver{"default"}; // "default" oder "jackal"
 
   };
@@ -231,64 +241,47 @@ private:
   ros::Subscriber sub_pose_;                                // Subscriber für die Süßigkeiten-Position
   ros::Subscriber sub_width_;                               // Subscriber für die Süßigkeiten-Breite
   ros::Subscriber sub_receiver_;                            // Subscriber für den Empfänger
-  ros::Timer      queue_timer_;
+  ros::Subscriber sub_state_;                               // Subscriber für den SP4-Zustand um die Beobachtungsposition zu setzen
 
   std::string feedback_topic    = "/rueckmeldung";          // Topic für die "Fertig" Nachricht
   std::string sweet_pose_topic  = "/sweet_pose_translated"; // Informationen über die übersetzten Koordinaten
   std::string sweet_width_topic = "/robot/status";          // Informationen über die Süßigkeiten-Breite
   std::string sweet_receiver_topic = "/sp4/receiver";       // Informationen über den Empfänger
+  std::string state_topic = "/current_state";               // Topic für den SP4-Zustand
+  std::string last_sp_state = "";                           // Letzter SP4-Zustand
 
   //--------------------------------------------------- Konfiguration --------------------------------------------------------
 
   // --- Höhen für Greif- und Hover-Positionen ---
-  const double grap_z  = PANDA_SIM_OFFSET_Z + 0.15;
-  const double hover_z = PANDA_SIM_OFFSET_Z + 0.22;
+  double panda_offset_z = 0.79; //Default (Simualtion)
+  double grap_z  = panda_offset_z + 0.0;
+  double hover_z = panda_offset_z + 0.0;
 
   // Default-Orientierung
   geometry_msgs::Quaternion default_orientation;
   //--------------------------------------------------- Zustands-Variablen --------------------------------------------------------
 
-  // Thread-sichere Pick-Queue
-  std::queue<PickJob> pick_queue;
-  // Mutexes für Thread-Sicherheit
-  std::mutex  pick_queue_mtx;
+  // Empfänger-Management
   std::mutex  receiver_mtx;
+  std::string current_receiver = "default";
+  // Objektbreiten-Management
   std::mutex  object_width_mtx;
-  // Standardwerte für die Süßigkeiten-Breite und Empfänger
   double      object_width_mm  = 0.0;
   bool        has_object_width = false;
-  std::string current_receiver = "default";
+
+  bool pick_running = false;
   //--------------------------------------------------- Hilfsfunktionen ---------------------------------------------------------
-
-  // Job in die Queue einreihen
-  void enqueuePick(const PickJob& job)
+  // Lädt den Z-Offset aus dem Parameter-Server für die Verwendeung in der Simulation und realen Roboter
+  void loadZOffset()
   {
-    std::lock_guard<std::mutex> lk(pick_queue_mtx);
-    pick_queue.push(job);
-  }
+    ros::NodeHandle pnh("~");  // private namespace: ~panda_offset_z
+    pnh.param("panda_offset_z", panda_offset_z, 0.79);
 
-  // Nächsten Job holen (falls vorhanden)
-  bool tryDequeuePick(PickJob& out)
-  {
-    std::lock_guard<std::mutex> lk(pick_queue_mtx);
-    if (pick_queue.empty())
-    {
-      return false;
-    }
-    out = pick_queue.front();
-    pick_queue.pop();
-    return true;
-  }
+    grap_z  = panda_offset_z + 0.12;
+    hover_z = panda_offset_z + 0.22;
 
-  // Timer Callback zur Abarbeitung der Pick-Queue
-  void processQueueTimerCb(const ros::TimerEvent&)
-  {
-    PickJob job;
-    if (tryDequeuePick(job))
-    {
-      ROS_INFO("[QUEUE] Start pick job at x=%.3f y=%.3f", job.pos.x, job.pos.y);
-      pickRoutine(job);
-    }
+    ROS_INFO("[INIT] panda_offset_z=%.3f m -> grap_z=%.3f m hover_z=%.3f m",
+            panda_offset_z, grap_z, hover_z);
   }
 
   // Initialisiert die Default-Orientierung so dass der Greifer nach unten zeigt
@@ -522,6 +515,7 @@ private:
     if (!moveArmToPose(above_pose, "move above target"))
     {
       ROS_WARN("[auto_pick] Failed move above");
+      pick_running = false;
       return;
     }
 
@@ -543,18 +537,27 @@ private:
     if (!moveArmToPose(grasp_pose, "lower to grasp"))
     {
       ROS_WARN("[auto_pick] Failed lowering");
+      pick_running = false;
       return;
     }
 
-    double width_mm = object_data.width_mm;
-    ROS_INFO("[auto_pick] Closing gripper for candy width %.1f mm ...", width_mm);
-    closeGripperWithWidth(width_mm);
+    if (object_data.has_width)
+    {
+      ROS_INFO("[auto_pick] Closing gripper for candy width %.1f mm ...", object_data.width_mm);
+      closeGripperWithWidth(object_data.width_mm);
+    }
+    else
+    {
+      ROS_WARN("[auto_pick] No width provided -> closing gripper with default close");
+      closeGripper();
+    }
 
     above_pose.orientation = c_orientation;
     ROS_INFO("[auto_pick] Lifting back to hover...");
     if (!moveArmToPose(above_pose, "lift back to hover"))
     {
       ROS_WARN("[auto_pick] Failed to lift back to hover");
+      pick_running = false;
       return;
     }
 
@@ -563,6 +566,7 @@ private:
     if (!moveArmToPose(above_place_pose, "move to above place"))
     {
       ROS_WARN("[auto_pick] Failed move to above place");
+      pick_running = false;
       return;
     }
 
@@ -571,6 +575,7 @@ private:
     if (!moveArmToPose(place_pose, "move to place"))
     {
       ROS_WARN("[auto_pick] Failed move to place");
+      pick_running = false;
       return;
     }
 
@@ -582,6 +587,7 @@ private:
     if (!moveArmToPose(above_place_pose, "move to above place (after open)"))
     {
       ROS_WARN("[auto_pick] Failed move to above place");
+      pick_running = false;
       return;
     }
 
@@ -589,51 +595,55 @@ private:
     moveToObserverPosition();
 
     publishFeedback();
+    pick_running = false;
   }
   // --------------------------------------------------- SP4 Schnittstellen ---------------------------------------------------------
 
   // Abonnieren des /sweet_pose_translated Topic zum Starten der Pick-Routine
   void sp4PoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)
   {
-    double width_mm = 0.0;
-
+    if (pick_running)
     {
-      std::lock_guard<std::mutex> lk(object_width_mtx);
-      if (!has_object_width)
-      {
-        ROS_WARN("[SP4] Pose empfangen, aber keine aktuelle Breite vorhanden -> Pick wird ignoriert");
-        return;
-      }
-      width_mm = object_width_mm;
-      has_object_width = false;
+      ROS_WARN("[SP4] Ignoring /sweet_pose_translated: pick routine already running");
+      return;
     }
 
-    geometry_msgs::Pose target_xy;
-    target_xy.position.x = msg->pose.position.x;
-    target_xy.position.y = msg->pose.position.y;
-    target_xy.position.z = grap_z;
+    PickJob job;
 
-    target_xy.orientation = msg->pose.orientation;
+    // Pose übernehmen
+    job.pos = msg->pose.position;
+    job.pos.z = grap_z;
 
+    // Yaw berechnen (wie bisher)
     double angle_rad = std::atan2(msg->pose.orientation.z,
                                   msg->pose.orientation.w) * 2.0;
-    double angle_deg = rad2deg(angle_rad);
+    job.tcp_yaw_deg = rad2deg(angle_rad);
+    job.has_tcp_yaw = true;
 
-    ROS_INFO(
-      "[SP4] Received /robot/pose -> robot (m): x=%.3f y=%.3f; Orientation angle=%.1f°, width=%.1f mm",
-      target_xy.position.x, target_xy.position.y, angle_deg, width_mm);
-
-    PickJob object_data;
-    object_data.pos         = target_xy.position;
-    object_data.tcp_yaw_deg = angle_deg;
-    object_data.has_tcp_yaw = true;
-    object_data.width_mm    = width_mm;
+    // Breite holen (falls vorhanden)
     {
-      std::lock_guard<std::mutex> lk(receiver_mtx);
-      object_data.receiver = current_receiver;
+      std::lock_guard<std::mutex> lk(object_width_mtx);
+      if (has_object_width)
+      {
+        job.width_mm = object_width_mm;
+        job.has_width = true;
+        // Zurücksetzen nach dem Holen
+        has_object_width = false;
+      }
+      else
+      {
+        job.has_width = false;
+      }
     }
 
-    enqueuePick(object_data);
+    // Receiver holen
+    {
+      std::lock_guard<std::mutex> lk(receiver_mtx);
+      job.receiver = current_receiver;
+    }
+
+    pick_running = true;
+    pickRoutine(job);
   }
 
   // Abonnieren des /robot/status Topic zum Aktualisieren der Süßigkeiten-Breite
@@ -678,6 +688,29 @@ private:
 
     ROS_INFO("[SP4] /sp4/receiver: receiver updated to '%s'", receiver.c_str());
   }
+
+  // Abonnieren des /current_state Topic zum Bewegen in die Beobachterposition zum aufnehmen der aktuellen Szene
+  void stateCallback(const std_msgs::String::ConstPtr& msg)
+  {
+    const std::string new_state = msg->data;
+
+    // Flanke: irgendwas -> WAITING_FOR_SELECTION
+    if (new_state == "WAITING_FOR_SELECTION" && last_sp_state != "WAITING_FOR_SELECTION")
+    {
+      if (pick_running)
+      {
+        ROS_WARN("[STATE] WAITING_FOR_SELECTION received but pick is running -> observer move skipped");
+      }
+      else
+      {
+        ROS_INFO("[STATE] -> WAITING_FOR_SELECTION: moving to observer position");
+        moveToObserverPosition();
+      }
+    }
+
+    last_sp_state = new_state;
+  }
+
 
   // --------------------------------------------------- CLI Hilfe ---------------------------------------------------------
   void printHelp()

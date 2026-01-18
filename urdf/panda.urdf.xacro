@@ -11,22 +11,25 @@
 
   <xacro:arg name="arm_id" default="panda" />
 
+  <!-- Parameters -->
+  <xacro:arg name="table_height" default="0.79"/>
+  <xacro:property name="table_height" value="$(arg table_height)"/>
+
   <!-- === FRANKA ROBOT === -->
   <xacro:franka_robot arm_id="$(arg arm_id)"
                       joint_limits="${xacro.load_yaml('$(find franka_description)/robots/panda/joint_limits.yaml')}"/>
 
-  <!-- === TABLE === -->
+  <!-- Environment -->
   <xacro:table parent="panda_link0"/>
-
-  <!-- === WALLS AROUND WORKSPACE === -->
   <xacro:spawn_walls parent="panda_link0"/>
 
-  <!-- === CAMERA MOUNT LINK === -->
+  <!-- Camera mount -->
   <link name="camera_mount">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://sp3_panda_ctrl/meshes/Panda_RealSenseD435_Camera_Mount.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://sp3_panda_ctrl/meshes/Panda_RealSenseD435_Camera_Mount.STL"
+              scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="dark_grey">
         <color rgba="0.2 0.2 0.2 1.0"/>
@@ -35,8 +38,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <!-- Beispielhafte vereinfachte Box als Kollisionskörper -->
-        <box size="0.00 0.00 0.00"/>
+        <box size="0.0 0.0 0.0"/>
       </geometry>
     </collision>
     <inertial>
@@ -46,47 +48,114 @@
     </inertial>
   </link>
 
-  <!-- === FIX CAMERA MOUNT TO PANDA HAND === -->
   <joint name="camera_mount_joint" type="fixed">
     <parent link="panda_hand"/>
     <child link="camera_mount"/>
     <origin xyz="0.063 0.03 -0.01" rpy="0 0 3.1461"/>
   </joint>
 
-  <!-- === MOUNT INTEL REALSENSE D435 CAMERA === -->
   <xacro:sensor_d435 parent="camera_mount">
     <origin xyz="0.025 0.03 0.05" rpy="0 -1.5708 0"/>
   </xacro:sensor_d435>
 
-  <!-- === SPAWN TRAFFIC LIGHT ON TABLE === -->
+  <!-- Objects on table -->
   <xacro:traffic_light parent="table_top" xyz="0.6 -0.72 0.77" rpy="0 0 0"/>
-
-  <!-- === SPAWN TWO LIDAR SENSORS ON TABLE === -->
   <xacro:lidar_sensor parent="table_top" xyz="-0.6 -0.72 0.77" rpy="0 0 0" prefix="lidar1_"/>
   <xacro:lidar_sensor parent="table_top" xyz="0.6 0.72 0.77" rpy="0 0 0" prefix="lidar2_"/>
 
-  <!-- === FIX TABLE TO BASE LINK (panda_link0) === -->
-  <joint name="world_to_table_top" type="fixed">
+  <!-- Table relative to panda base -->
+  <joint name="panda_base_to_table_top" type="fixed">
     <parent link="panda_link0"/>
     <child link="table_top"/>
-    <origin xyz="0 0 -0.79" rpy="0 0 0"/>  </joint>
+    <origin xyz="0 0 -${table_height}" rpy="0 0 0"/>
+  </joint>
 
-  <!-- === VISUAL ONLY WORK SURFACE (NO COLLISION) === -->
+  <!-- Convenience frame: z=0 lies on the table surface -->
+  <link name="table_surface"/>
+  <joint name="table_top_to_table_surface" type="fixed">
+    <parent link="table_top"/>
+    <child link="table_surface"/>
+    <origin xyz="0 0 ${table_height}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Visual-only work surface marker -->
   <link name="work_surface_visual">
     <visual>
-      <origin xyz="0.4 0.0 0.791" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <box size="0.22 0.30 0.002"/>
       </geometry>
-      <material name="work_surface_blue">
-        <color rgba="0.1 0.4 0.9 0.35"/>
+      <material name="work_surface_white">
+        <color rgba="1.0 1.0 1.0 0.5"/>
       </material>
     </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+    </collision>
   </link>
 
-  <joint name="work_surface_visual_joint" type="fixed">
+  <joint name="table_top_to_work_surface_visual" type="fixed">
     <parent link="table_top"/>
     <child link="work_surface_visual"/>
+    <origin xyz="0.5 0 ${table_height}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Dropoff markers -->
+  <link name="dropoff_red_default">
+    <visual>
+      <origin xyz="0.2 -0.6 0.791" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07 0.07 0.002"/>
+      </geometry>
+      <material name="dropoff_red_default_mat">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="dropoff_red_default">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <joint name="table_top_to_dropoff_red_default" type="fixed">
+    <parent link="table_top"/>
+    <child link="dropoff_red_default"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="dropoff_blue_jackal">
+    <visual>
+      <origin xyz="-0.2 -0.6 0.791" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.07 0.07 0.002"/>
+      </geometry>
+      <material name="dropoff_blue_jackal_mat">
+        <color rgba="0.0 0.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+    </collision>
+  </link>
+  <gazebo reference="dropoff_blue_jackal">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <joint name="table_top_to_dropoff_blue_jackal" type="fixed">
+    <parent link="table_top"/>
+    <child link="dropoff_blue_jackal"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 

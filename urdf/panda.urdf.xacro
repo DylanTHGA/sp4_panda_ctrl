@@ -106,7 +106,7 @@
   <!-- Dropoff markers -->
   <link name="dropoff_red_default">
     <visual>
-      <origin xyz="0.2 -0.6 0.791" rpy="0 0 0"/>
+      <origin xyz="0.0 -0.6 0.791" rpy="0 0 0"/>
       <geometry>
         <box size="0.07 0.07 0.002"/>
       </geometry>
@@ -134,7 +134,7 @@
 
   <link name="dropoff_blue_jackal">
     <visual>
-      <origin xyz="-0.2 -0.6 0.791" rpy="0 0 0"/>
+      <origin xyz="-0.3 -0.6 0.791" rpy="0 0 0"/>
       <geometry>
         <box size="0.07 0.07 0.002"/>
       </geometry>

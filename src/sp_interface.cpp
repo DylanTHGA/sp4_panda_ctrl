@@ -40,12 +40,6 @@ void PandaCliController::sp4PoseCallback(const geometry_msgs::PoseStamped::Const
     }
   }
 
-  // Aktuellen Receiver setzen
-  {
-    std::lock_guard<std::mutex> lk(receiver_mtx_);
-    job.receiver = current_receiver_;
-  }
-
   // Pick-Routine starten
   pick_running_ = true;
   pickRoutine(job);
@@ -79,20 +73,26 @@ void PandaCliController::robotStatusCallback(const std_msgs::String::ConstPtr& m
 }
 
 /**
- * Callback für /sp4/receiver.
- * Aktualisiert den aktuell gewählten Empfänger.
+ * Callback für /sp4/goalpose.
+ * Aktualisiert die aktuell gewählte Ablage-Zielkennung:
+ * 1 = Standard-Ablageposition, 2 = Jackal-Ablageposition
  */
-void PandaCliController::receiverCallback(const std_msgs::String::ConstPtr& msg)
+void PandaCliController::goalPoseCallback(const std_msgs::Int32::ConstPtr& msg)
 {
-  // Leerer String -> Default-Receiver
-  const std::string receiver = msg->data.empty() ? "default" : msg->data;
+  const int id = msg->data;
 
+  if (id != 1 && id != 2)
   {
-    std::lock_guard<std::mutex> lk(receiver_mtx_);
-    current_receiver_ = receiver;
+    ROS_WARN("[SP4] /sp4/goalpose: invalid id %d (expected 1 or 2)", id);
+    return;
   }
 
-  ROS_INFO("[SP4] /sp4/receiver: receiver updated to '%s'", receiver.c_str());
+  {
+    std::lock_guard<std::mutex> lk(goalpose_mtx_);
+    current_goalpose_id_ = id;
+  }
+
+  ROS_INFO("[SP4] /sp4/goalpose: goalpose_id updated to %d", id);
 }
 
 /**

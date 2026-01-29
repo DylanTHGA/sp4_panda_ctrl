@@ -2,6 +2,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <std_msgs/Int32.h>
 
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
@@ -36,8 +37,6 @@ private:
 
     double width_mm{0.0};
     bool has_width{false};
-
-    std::string receiver{"default"}; // "default" or "jackal"
   };
 
   // -------------------- ROS & MoveIt --------------------
@@ -48,13 +47,13 @@ private:
   ros::Publisher  feedback_pub_;
   ros::Subscriber sub_pose_;
   ros::Subscriber sub_width_;
-  ros::Subscriber sub_receiver_;
+  ros::Subscriber sub_goalpose_;
   ros::Subscriber sub_state_;
 
   std::string feedback_topic_        = "/rueckmeldung";
   std::string sweet_pose_topic_      = "/sweet_pose_translated";
   std::string sweet_width_topic_     = "/robot/status";
-  std::string sweet_receiver_topic_  = "/sp4/receiver";
+  std::string sweet_goalpose_topic_  = "/sp4/goalpose";
   std::string state_topic_           = "/current_state";
   std::string last_sp_state_         = "";
 
@@ -65,8 +64,9 @@ private:
   geometry_msgs::Quaternion default_orientation_;
 
   // -------------------- State --------------------
-  std::mutex  receiver_mtx_;
-  std::string current_receiver_ = "default";
+  // GoalPose-ID: 1 = Standard-Ablage, 2 = Jackal-Ablage
+  std::mutex goalpose_mtx_;
+  int current_goalpose_id_ = 1;
 
   std::mutex object_width_mtx_;
   double object_width_mm_ = 0.0;
@@ -97,10 +97,10 @@ private:
   void moveToStartPosition();
   void moveToPlacePosition();
 
-  bool moveToAbovePlaceJoints(const std::string& receiver);
+  bool moveToAbovePlaceJoints(int goalpose_id);
   bool moveToCarryJoints();
 
-  geometry_msgs::Pose makePlacePose(const std::string& receiver, bool above) const;
+  geometry_msgs::Pose makePlacePose(int goalpose_id, bool above) const;
 
   bool setWristAngle(double angle_deg);
 
@@ -113,7 +113,7 @@ private:
   // -------------------- ROS callbacks --------------------
   void sp4PoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
   void robotStatusCallback(const std_msgs::String::ConstPtr& msg);
-  void receiverCallback(const std_msgs::String::ConstPtr& msg);
+  void goalPoseCallback(const std_msgs::Int32::ConstPtr& msg);
   void stateCallback(const std_msgs::String::ConstPtr& msg);
 
   // -------------------- CLI help --------------------

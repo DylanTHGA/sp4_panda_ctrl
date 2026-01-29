@@ -61,10 +61,10 @@ PandaCliController::PandaCliController()
 
   // --- Publisher/Subscriber (SP4 Schnittstellen + Zustands-Observer) ---
   feedback_pub_ = nh_.advertise<std_msgs::String>(feedback_topic_, 1, true);
-  sub_pose_     = nh_.subscribe(sweet_pose_topic_,  1, &PandaCliController::sp4PoseCallback, this);
-  sub_width_    = nh_.subscribe(sweet_width_topic_, 1, &PandaCliController::robotStatusCallback, this);
-  sub_receiver_ = nh_.subscribe(sweet_receiver_topic_, 1, &PandaCliController::receiverCallback, this);
-  sub_state_    = nh_.subscribe(state_topic_, 1, &PandaCliController::stateCallback, this);
+  sub_pose_     = nh_.subscribe(sweet_pose_topic_,      1, &PandaCliController::sp4PoseCallback, this);
+  sub_width_    = nh_.subscribe(sweet_width_topic_,     1, &PandaCliController::robotStatusCallback, this);
+  sub_goalpose_ = nh_.subscribe(sweet_goalpose_topic_,  1, &PandaCliController::goalPoseCallback, this);
+  sub_state_    = nh_.subscribe(state_topic_,           1, &PandaCliController::stateCallback, this);
 
   // CLI-Hilfe ausgeben
   printHelp();
@@ -191,18 +191,17 @@ void PandaCliController::moveToPlacePosition()
     ROS_WARN("Failed moving to place Position");
 }
 
-bool PandaCliController::moveToAbovePlaceJoints(const std::string& receiver)
+bool PandaCliController::moveToAbovePlaceJoints(int goalpose_id)
 {
   setPTP(0.05, 0.05);
   arm_.setStartStateToCurrentState();
 
-  const bool is_jackal = (receiver == "jackal");
+  const bool is_jackal = (goalpose_id == 2);
   arm_.setJointValueTarget(is_jackal ? abovePlaceJointsJackal : abovePlaceJoints);
 
   MoveGroupInterface::Plan plan;
   return planAndExecute(arm_, plan);
 }
-
 
 bool PandaCliController::moveToCarryJoints()
 {
@@ -214,17 +213,17 @@ bool PandaCliController::moveToCarryJoints()
   return planAndExecute(arm_, plan);
 }
 
-geometry_msgs::Pose PandaCliController::makePlacePose(const std::string& receiver, bool above) const
+geometry_msgs::Pose PandaCliController::makePlacePose(int goalpose_id, bool above) const
 {
-  // Receiver-abhängige Ablagepose (Position), z je nach "above"/"place"
+  // GoalPose-abhängige Ablagepose (Position), z je nach "above"/"place"
   geometry_msgs::Pose pose;
   pose.orientation = default_orientation_;
 
-  const bool is_jackal = (receiver == "jackal");
+  const bool is_jackal = (goalpose_id == 2);
 
   if (is_jackal)
   {
-    // TODO: reale Übergabepose für Jackal anpassen (Drop-Off-Position)
+    // TODO: reale Übergabepose für Jackal anpassen (Drop-Off-Position zur Rutsche)
     pose.position.x = -0.3;
     pose.position.y = -0.6;
   }
@@ -234,16 +233,8 @@ geometry_msgs::Pose PandaCliController::makePlacePose(const std::string& receive
     pose.position.y = -0.6;
   }
 
-  if(above)
-  {
-    pose.position.z = hover_z_;
-  }
-  else
-  {
-    pose.position.z = grap_z_;
-  }
+  pose.position.z = above ? hover_z_ : grap_z_;
   return pose;
-
 }
 
 bool PandaCliController::setWristAngle(double angle_deg)
@@ -316,8 +307,11 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
 {
   pick_running_ = true;
 
-  const double transit_x = 0.35;
-  const double transit_y = -0.3;
+  int goalpose_id = 1;
+  {
+    std::lock_guard<std::mutex> lk(goalpose_mtx_);
+    goalpose_id = current_goalpose_id_;
+  }
 
   const double x = object_data.pos.x;
   const double y = object_data.pos.y;
@@ -331,14 +325,8 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   geometry_msgs::Pose grasp_pose = above_pose;
   grasp_pose.position.z = grap_z_;
 
-  geometry_msgs::Pose above_place_pose = makePlacePose(object_data.receiver, true);
-  geometry_msgs::Pose place_pose       = makePlacePose(object_data.receiver, false);
-
-  geometry_msgs::Pose mid_pose;
-  mid_pose.position.x = transit_x;
-  mid_pose.position.y = transit_y;
-  mid_pose.position.z = hover_z_;
-  mid_pose.orientation = default_orientation_;
+  geometry_msgs::Pose above_place_pose = makePlacePose(goalpose_id, true);
+  geometry_msgs::Pose place_pose       = makePlacePose(goalpose_id, false);
 
   // 1) Über Objekt (PTP)
   setPTP(0.05, 0.05);
@@ -384,7 +372,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
     return;
   }
 
-    // 4) Transport: nur über feste Joint-Stützpunkte zur Ablage
+  // 4) Transport: nur über feste Joint-Stützpunkte zur Ablage
   setPTP(0.05, 0.05);
 
   if (!moveToCarryJoints())
@@ -394,7 +382,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
     return;
   }
 
-  if (!moveToAbovePlaceJoints(object_data.receiver))
+  if (!moveToAbovePlaceJoints(goalpose_id))
   {
     ROS_WARN("[auto_pick] Failed PTP to abovePlaceJoints");
     pick_running_ = false;
@@ -426,8 +414,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   }
 
   // 7) Rückweg: wieder über feste Joints (PTP)
-  (void)moveToAbovePlaceJoints(object_data.receiver);
-
+  (void)moveToAbovePlaceJoints(goalpose_id);
   (void)moveToCarryJoints();
 
   moveToObserverPosition();
@@ -435,4 +422,3 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   publishFeedback();
   pick_running_ = false;
 }
-

@@ -12,7 +12,7 @@
   <arg name="paused" default="false" doc="Start Gazebo paused"/>
 
   <!-- Launch the gazebo simulator and spawn the robot -->
-  <include file="$(find sp3_panda_ctrl)/launch/panda.launch" pass_all_args="true">
+  <include file="$(find sp4_panda_ctrl)/launch/panda.launch" pass_all_args="true">
     <arg name="headless" value="$(eval not arg('gazebo_gui'))" />
     <arg name="use_gripper" default="$(arg load_gripper)" />
     <arg name="controller" default="$(arg transmission)_joint_trajectory_controller" />

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>sp3_panda_ctrl</name>
+  <name>sp4_panda_ctrl</name>
   <version>0.0.1</version>
   <description>Control utilities for the Franka Panda using MoveIt</description>
 
@@ -8,7 +8,7 @@
   <license>MIT</license>
 
   <!-- Optional but nice to have -->
-  <url type="website">http://wiki.ros.org/sp3_panda_ctrl</url>
+  <url type="website">http://wiki.ros.org/sp4_panda_ctrl</url>
 
   <!-- Build tool -->
   <buildtool_depend>catkin</buildtool_depend>

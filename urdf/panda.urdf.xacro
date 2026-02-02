@@ -3,11 +3,11 @@
 
   <!-- === INCLUDE NECESSARY XACRO FILES === -->
   <xacro:include filename="$(find franka_description)/robots/common/franka_robot.xacro"/>
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/traffic_light.urdf.xacro"/>
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/table.urdf.xacro"/>
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/lidar_sensor.urdf.xacro"/>
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/realsense_d435.urdf.xacro"/>
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/wall.urdf.xacro"/>
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/traffic_light.urdf.xacro"/>
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/table.urdf.xacro"/>
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/lidar_sensor.urdf.xacro"/>
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/realsense_d435.urdf.xacro"/>
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/wall.urdf.xacro"/>
 
   <xacro:arg name="arm_id" default="panda" />
 
@@ -28,7 +28,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://sp3_panda_ctrl/meshes/Panda_RealSenseD435_Camera_Mount.STL"
+        <mesh filename="package://sp4_panda_ctrl/meshes/Panda_RealSenseD435_Camera_Mount.STL"
               scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="dark_grey">

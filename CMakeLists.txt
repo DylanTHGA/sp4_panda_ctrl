@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(sp3_panda_ctrl)
+project(sp4_panda_ctrl)
 
 add_compile_options(-std=c++11)
 

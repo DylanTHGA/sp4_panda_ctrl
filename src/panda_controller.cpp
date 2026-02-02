@@ -182,7 +182,7 @@ void PandaCliController::moveToStartPosition()
 void PandaCliController::moveToPlacePosition()
 {
   geometry_msgs::Pose place_pose;
-  place_pose.position.x = 0.2;
+  place_pose.position.x = 0.0;
   place_pose.position.y = -0.6;
   place_pose.position.z = grap_z_;
   place_pose.orientation = default_orientation_;

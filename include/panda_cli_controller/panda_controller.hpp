@@ -63,6 +63,8 @@ private:
 
   geometry_msgs::Quaternion default_orientation_;
 
+  enum class MotionMode { PTP, LIN };
+  MotionMode cli_mode_ = MotionMode::PTP;
   // -------------------- State --------------------
   // GoalPose-ID: 1 = Standard-Ablage, 2 = Jackal-Ablage
   std::mutex goalpose_mtx_;
@@ -82,8 +84,8 @@ private:
   void initializeDefaultOrientation();
 
   bool planAndExecute(MoveGroupInterface& group, MoveGroupInterface::Plan& plan);
-  void setPTP(double v, double a);
-  void setLIN(double v, double a);
+  void setPTP();
+  void setLIN();
 
   bool moveArmToPose(const geometry_msgs::Pose& pose);
 

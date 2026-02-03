@@ -35,6 +35,32 @@ void PandaCliController::handleCommands(const std::string& line)
     return;
   }
 
+  if (cmd == "mode")
+  {
+    std::string m;
+    if (!(iss >> m))
+    {
+      ROS_WARN("INPUT_ERROR: mode ptp|lin");
+      return;
+    }
+
+    if (m == "ptp")
+    {
+      cli_mode_ = MotionMode::PTP;
+      ROS_INFO("[CLI] Motion mode set to PTP");
+    }
+    else if (m == "lin")
+    {
+      cli_mode_ = MotionMode::LIN;
+      ROS_INFO("[CLI] Motion mode set to LIN");
+    }
+    else
+    {
+      ROS_WARN("INPUT_ERROR: mode ptp|lin");
+    }
+    return;
+  }
+
   if (cmd == "move_to")
   {
     double x, y, z;
@@ -43,6 +69,11 @@ void PandaCliController::handleCommands(const std::string& line)
       ROS_WARN("INPUT_ERROR: move_to x y z");
       return;
     }
+
+    if (cli_mode_ == MotionMode::PTP)
+    { setPTP();}
+    else
+    { setLIN();}
 
     geometry_msgs::Pose target;
     target.position.x = x;
@@ -201,6 +232,7 @@ void PandaCliController::printHelp()
     stop                        - Stop any current motion
 
   [Move]
+    mode ptp|lin                - Select planner mode for move_to
     move_to x y z               - Move end-effector to (x, y, z) [m]
     set_joints j1 ... j7        - Set all 7 joints [deg]
     pick x y [angle_deg]        - Pick object at (x, y), optional yaw

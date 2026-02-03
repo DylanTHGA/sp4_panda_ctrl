@@ -92,20 +92,16 @@ bool PandaCliController::planAndExecute(MoveGroupInterface& group,
   return true;
 }
 
-void PandaCliController::setPTP(double v, double a)
+void PandaCliController::setPTP()
 {
   arm_.setPlanningPipelineId("pilz_industrial_motion_planner");
   arm_.setPlannerId("PTP");
-  // arm_.setMaxVelocityScalingFactor(v);
-  // arm_.setMaxAccelerationScalingFactor(a);
 }
 
-void PandaCliController::setLIN(double v, double a)
+void PandaCliController::setLIN()
 {
   arm_.setPlanningPipelineId("pilz_industrial_motion_planner");
   arm_.setPlannerId("LIN");
-  // arm_.setMaxVelocityScalingFactor(v);
-  // arm_.setMaxAccelerationScalingFactor(a);
 }
 
 bool PandaCliController::moveArmToPose(const geometry_msgs::Pose& pose)
@@ -181,19 +177,38 @@ void PandaCliController::moveToStartPosition()
 
 void PandaCliController::moveToPlacePosition()
 {
-  geometry_msgs::Pose place_pose;
-  place_pose.position.x = 0.0;
-  place_pose.position.y = -0.6;
-  place_pose.position.z = grap_z_;
-  place_pose.orientation = default_orientation_;
+  int goalpose_id = 1;
+  {
+    std::lock_guard<std::mutex> lk(goalpose_mtx_);
+    goalpose_id = current_goalpose_id_;
+  }
 
+  setPTP();
+  if (!moveToAbovePlaceJoints(goalpose_id))
+  {
+    ROS_WARN("Failed moving to abovePlaceJoints");
+    return;
+  }
+
+  geometry_msgs::Quaternion place_ori = arm_.getCurrentPose().pose.orientation;
+  geometry_msgs::Pose above_place_pose = makePlacePose(goalpose_id, true);
+  geometry_msgs::Pose place_pose       = makePlacePose(goalpose_id, false);
+
+  above_place_pose.orientation = place_ori;
+  place_pose.orientation       = place_ori;
+
+  setLIN();
   if (!moveArmToPose(place_pose))
-    ROS_WARN("Failed moving to place Position");
+  {
+    ROS_WARN("Failed moving LIN down to place");
+    return;
+  }
+
 }
 
 bool PandaCliController::moveToAbovePlaceJoints(int goalpose_id)
 {
-  setPTP(0.05, 0.05);
+  setPTP();
   arm_.setStartStateToCurrentState();
 
   const bool is_jackal = (goalpose_id == 2);
@@ -205,7 +220,7 @@ bool PandaCliController::moveToAbovePlaceJoints(int goalpose_id)
 
 bool PandaCliController::moveToCarryJoints()
 {
-  setPTP(0.05, 0.05);
+  setPTP();
   arm_.setStartStateToCurrentState();
   arm_.setJointValueTarget(carryJoints);
 
@@ -329,7 +344,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   geometry_msgs::Pose place_pose       = makePlacePose(goalpose_id, false);
 
   // 1) Über Objekt (PTP)
-  setPTP(0.05, 0.05);
+  setPTP();
   if (!moveArmToPose(above_pose))
   {
     ROS_WARN("[auto_pick] Failed PTP above target");
@@ -351,7 +366,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   grasp_pose.orientation = c_orientation;
 
   // 2) Runter zum Objekt (LIN)
-  setLIN(0.05, 0.03);
+  setLIN();
   if (!moveArmToPose(grasp_pose))
   {
     ROS_WARN("[auto_pick] Failed LIN down to grasp");
@@ -373,7 +388,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   }
 
   // 4) Transport: nur über feste Joint-Stützpunkte zur Ablage
-  setPTP(0.05, 0.05);
+  setPTP();
 
   if (!moveToCarryJoints())
   {
@@ -395,7 +410,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   place_pose.orientation       = place_ori;
 
   // 5) LIN runter zur Ablage
-  setLIN(0.05, 0.03);
+  setLIN();
   if (!moveArmToPose(place_pose))
   {
     ROS_WARN("[auto_pick] Failed LIN down to place");

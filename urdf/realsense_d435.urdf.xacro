@@ -10,10 +10,10 @@ aluminum peripherial evaluation case.
 
 <robot name="sensor_d435" xmlns:xacro="http://ros.org/wiki/xacro">
   <!-- Includes -->
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/_materials.urdf.xacro" />
-  <xacro:include filename="$(find sp3_panda_ctrl)/urdf/_usb_plug.urdf.xacro" />
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/_materials.urdf.xacro" />
+  <xacro:include filename="$(find sp4_panda_ctrl)/urdf/_usb_plug.urdf.xacro" />
 
-  <xacro:macro name="sensor_d435" params="parent *origin name:=camera use_nominal_extrinsics:=false add_plug:=false use_mesh:=true">
+  <xacro:macro name="sensor_d435" params="parent *origin name:=camera use_nominal_extrinsics:=true add_plug:=false use_mesh:=true">
     <xacro:property name="M_PI" value="3.1415926535897931" />
 
     <!-- The following values are approximate, and the camera node
@@ -62,7 +62,7 @@ aluminum peripherial evaluation case.
           <!-- the mesh origin is at front plate in between the two infrared camera axes -->
           <origin xyz="${d435_zero_depth_to_glass + d435_glass_to_front} ${-d435_cam_depth_py} 0" rpy="${M_PI/2} 0 ${M_PI/2}"/>
           <geometry>
-            <mesh filename="package://sp3_panda_ctrl/meshes/d435.dae" />
+            <mesh filename="package://sp4_panda_ctrl/meshes/d435.dae" />
           </geometry>
         </xacro:if>
         <xacro:unless value="${use_mesh}">
@@ -74,9 +74,9 @@ aluminum peripherial evaluation case.
         </xacro:unless>
       </visual>
       <collision>
-        <origin xyz="0 ${-d435_cam_depth_py} 0" rpy="0 0 0"/>
+        <origin xyz="-0.02 ${-d435_cam_depth_py} 0" rpy="0 0 0"/>
         <geometry>
-          <box size="${d435_cam_depth} ${d435_cam_width} ${d435_cam_height}"/>
+          <box size="0.055 ${d435_cam_width} ${d435_cam_height}"/>
         </geometry>
       </collision>
       <inertial>
@@ -155,10 +155,9 @@ aluminum peripherial evaluation case.
         <origin xyz="${d435_cam_mount_from_center_offset - 0.02095} ${-d435_cam_depth_py - 0.0353} 0" rpy="0 0 0"/>
       </xacro:usb_plug>
     </xacro:if>
-  </xacro:macro>
     <!-- === GAZEBO CAMERA SENSOR === -->
-  <gazebo reference="camera_link">
-    <sensor name="camera_rgb_sensor" type="camera">
+  <gazebo reference="${name}_color_frame">
+    <sensor name="${name}_rgb_sensor" type="camera">
       <always_on>true</always_on>
       <update_rate>30.0</update_rate>
       <camera>
@@ -173,14 +172,15 @@ aluminum peripherial evaluation case.
           <far>5.0</far>
         </clip>
       </camera>
-      <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+      <plugin name="${name}_controller" filename="libgazebo_ros_camera.so">
         <always_on>true</always_on>
         <update_rate>30.0</update_rate>
-        <camera_name>camera</camera_name>
+        <camera_name>${name}</camera_name>
         <image_topic_name>image_raw</image_topic_name>
         <camera_info_topic_name>camera_info</camera_info_topic_name>
-        <frame_name>camera_link</frame_name>
+        <frame_name>${name}_color_frame</frame_name>
       </plugin>
     </sensor>
   </gazebo>
+  </xacro:macro>
 </robot>

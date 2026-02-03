@@ -1,168 +1,170 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="table">
-  
-<xacro:macro name="table" params="parent:=world xyz:='0 0 0' rpy:='0 0 0'">
 
-  <!-- === TISCHKÖRPER (schwarz) === -->
-  <link name="table_base">
-    <visual>
-      <origin xyz="0 0 0.485" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.395 1.315 0.57"/>
-      </geometry>
-      <material name="black"><color rgba="0 0 0 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0.485" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.395 1.315 0.57"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="40.0"/>
-      <origin xyz="0 0 0.485" rpy="0 0 0"/>
-      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
-    </inertial>
-  </link>
+  <xacro:macro name="table" params="parent:=world xyz:='0 0 0' rpy:='0 0 0'">
+    <!-- === Farben für den Tisch in RVIZ === -->
+    <material name="mat_black">
+      <color rgba="0 0 0 1"/>
+    </material>
 
-  <gazebo reference="table_base">
-    <material>Gazebo/Black</material>
-  </gazebo>
+    <material name="mat_grey">
+      <color rgba="0.6 0.6 0.6 1"/>
+    </material>
 
-  <!-- === TISCHPLATTE (grau) === -->
-  <link name="table_top">
-    <visual>
-      <origin xyz="0 0 0.77" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.40 1.32 0.04"/>
-      </geometry>
-      <material name="black"><color rgba="1 1 1 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0.77" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.40 1.32 0.04"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="10.0"/>
-      <origin xyz="0 0 0.77" rpy="0 0 0"/>
-      <inertia ixx="0.5" ixy="0.0" ixz="0.0" iyy="0.5" iyz="0.0" izz="0.5"/>
-    </inertial>
-  </link>
+    <!-- === TISCHKÖRPER (schwarz) === -->
+    <link name="table_base">
+      <visual>
+        <origin xyz="0 0 0.485" rpy="0 0 0"/>
+        <geometry>
+          <box size="1.395 1.315 0.57"/>
+        </geometry>
+        <material name="mat_black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.485" rpy="0 0 0"/>
+        <geometry>
+          <box size="1.395 1.315 0.57"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="40.0"/>
+        <origin xyz="0 0 0.485" rpy="0 0 0"/>
+        <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+      </inertial>
+    </link>
 
-  <gazebo reference="table_top">
-    <material>Gazebo/Grey</material>
-  </gazebo>
+    <gazebo reference="table_base">
+      <material>Gazebo/Black</material>
+    </gazebo>
 
-  <!-- === TISCHBEINE (grau) === -->
-  <!-- Bein vorne links -->
-  <link name="table_leg_1">
-    <visual>
-      <origin xyz="-0.65 -0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-      <material name="black"><color rgba="0 0 0 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="-0.65 -0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="1.0"/>
-      <origin xyz="-0.65 -0.61 0.395" rpy="0 0 0"/>
-      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
-    </inertial>
-  </link>
+    <!-- === TISCHPLATTE (grau) === -->
+    <link name="table_top">
+      <visual>
+        <origin xyz="0 0 0.77" rpy="0 0 0"/>
+        <geometry>
+          <box size="1.40 1.32 0.04"/>
+        </geometry>
+        <material name="mat_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.77" rpy="0 0 0"/>
+        <geometry>
+          <box size="1.40 1.32 0.04"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="10.0"/>
+        <origin xyz="0 0 0.77" rpy="0 0 0"/>
+        <inertia ixx="0.5" ixy="0.0" ixz="0.0" iyy="0.5" iyz="0.0" izz="0.5"/>
+      </inertial>
+    </link>
 
-  <gazebo reference="table_leg_1">
-    <material>Gazebo/Grey</material>
-  </gazebo>
+    <gazebo reference="table_top">
+      <material>Gazebo/Grey</material>
+    </gazebo>
 
-  <!-- Bein vorne rechts -->
-  <link name="table_leg_2">
-    <visual>
-      <origin xyz="0.65 -0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-      <material name="black"><color rgba="0 0 0 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0.65 -0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="1.0"/>
-      <origin xyz="0.65 -0.61 0.395" rpy="0 0 0"/>
-      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
-    </inertial>
-  </link>
+    <!-- === TISCHBEINE (grau) === -->
+    <link name="table_leg_1">
+      <visual>
+        <origin xyz="-0.65 -0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+        <material name="mat_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="-0.65 -0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1.0"/>
+        <origin xyz="-0.65 -0.61 0.395" rpy="0 0 0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
+    </link>
 
-  <gazebo reference="table_leg_2">
-    <material>Gazebo/Grey</material>
-  </gazebo>
+    <gazebo reference="table_leg_1">
+      <material>Gazebo/Grey</material>
+    </gazebo>
 
-  <!-- Bein hinten links -->
-  <link name="table_leg_3">
-    <visual>
-      <origin xyz="-0.65 0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-      <material name="black"><color rgba="0 0 0 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="-0.65 0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="1.0"/>
-      <origin xyz="-0.65 0.61 0.395" rpy="0 0 0"/>
-      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
-    </inertial>
-  </link>
+    <link name="table_leg_2">
+      <visual>
+        <origin xyz="0.65 -0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+        <material name="mat_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="0.65 -0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1.0"/>
+        <origin xyz="0.65 -0.61 0.395" rpy="0 0 0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
+    </link>
 
-  <gazebo reference="table_leg_3">
-    <material>Gazebo/Grey</material>
-  </gazebo>
+    <gazebo reference="table_leg_2">
+      <material>Gazebo/Grey</material>
+    </gazebo>
 
-  <!-- Bein hinten rechts -->
-  <link name="table_leg_4">
-    <visual>
-      <origin xyz="0.65 0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-      <material name="black"><color rgba="0 0 0 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0.65 0.61 0.395" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.1 0.1 0.79"/>
-      </geometry>
-    </collision>
-    <inertial>
-      <mass value="1.0"/>
-      <origin xyz="0.65 0.61 0.395" rpy="0 0 0"/>
-      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
-    </inertial>
-  </link>
+    <link name="table_leg_3">
+      <visual>
+        <origin xyz="-0.65 0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+        <material name="mat_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="-0.65 0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1.0"/>
+        <origin xyz="-0.65 0.61 0.395" rpy="0 0 0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
+    </link>
 
-  <gazebo reference="table_leg_4">
-    <material>Gazebo/Grey</material>
-  </gazebo>
-  
+    <gazebo reference="table_leg_3">
+      <material>Gazebo/Grey</material>
+    </gazebo>
 
-  <!-- === JOINTS === -->
-    <!-- Beine -->
+    <link name="table_leg_4">
+      <visual>
+        <origin xyz="0.65 0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+        <material name="mat_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="0.65 0.61 0.395" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.79"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1.0"/>
+        <origin xyz="0.65 0.61 0.395" rpy="0 0 0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
+    </link>
+
+    <gazebo reference="table_leg_4">
+      <material>Gazebo/Grey</material>
+    </gazebo>
+
+    <!-- === JOINTS === -->
     <joint name="table_leg_1_joint" type="fixed">
       <parent link="table_base"/>
       <child link="table_leg_1"/>
@@ -183,14 +185,12 @@
       <child link="table_leg_4"/>
     </joint>
 
-    <!-- Positionierung des Tisches relativ zur Welt oder Roboter -->
-    <!-- Verbindung des Tisches mit dem übergeordneten Link -->
-
     <joint name="table_base_to_top" type="fixed">
       <parent link="table_top"/>
       <child link="table_base"/>
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
+
   </xacro:macro>
 
 </robot>

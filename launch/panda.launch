@@ -41,9 +41,9 @@
     <arg name="use_sim_time" value="true"/>
   </include>
 
-  <!-- Dein eigenes URDF -->
+  <!-- eigene URDF-Datei mit THGA-Laborumgebung-->
   <param name="robot_description"
-         command="$(find xacro)/xacro $(find sp3_panda_ctrl)/urdf/panda.urdf.xacro
+         command="$(find xacro)/xacro $(find sp4_panda_ctrl)/urdf/panda.urdf.xacro
                   gazebo:=true
                   hand:=$(arg use_gripper)
                   arm_id:=$(arg arm_id)

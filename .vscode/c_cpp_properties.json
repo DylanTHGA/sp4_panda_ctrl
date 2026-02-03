@@ -17,7 +17,7 @@
         "/home/dylan/catkin_ws/src/gazebo_ros_pkgs/gazebo_ros/include/**",
         "/home/dylan/catkin_ws/src/gazebo_ros_pkgs/gazebo_ros_control/include/**",
         "/home/dylan/catkin_ws/src/realsense-ros/realsense2_camera/include/**",
-        "/home/dylan/catkin_ws/src/sp3_panda_ctrl/include/**",
+        "/home/dylan/catkin_ws/src/sp4_panda_ctrl/include/**",
         "/usr/include/**"
       ],
       "name": "ROS",

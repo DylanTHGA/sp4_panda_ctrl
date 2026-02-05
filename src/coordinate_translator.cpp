@@ -14,9 +14,13 @@ public:
     subscribed_topic_name_ = "/robot/pose";
     published_topic_name_  = "/sweet_pose_translated";
 
+    // Ziel-Frame für den Panda-Controller
     pnh.param<std::string>("output_frame", output_frame_, std::string("panda_link0"));
 
-    // Vision origin (0,0) in robot frame (panda_link0) approx (0.57, 0.185)
+    // Ursprung (0,0) der Bildverarbeitung im Roboter-Frame (panda_link0).
+    // Wird aus der festen Foto-Pose hergeleitet:
+    // TCP ~ (0.405, ...), Kamera +0.05 m in +X, Bildhöhe 0.22 m -> origin_x ~ 0.57
+    // Linsenoffset +0.035 m in +Y, Bildbreite 0.30 m -> origin_y ~ 0.185
     pnh.param("origin_x_m", origin_x_m_, 0.57);
     pnh.param("origin_y_m", origin_y_m_, 0.185);
 
@@ -43,9 +47,10 @@ private:
 
   void poseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)
   {
-    
-    const double x_mm = msg->pose.position.x;   
-    const double y_mm = msg->pose.position.y;  
+    // SP4-Bildverarbeitungsystem liefert x/y in mm relativ zu ihrem Ursprung (0,0).
+    const double x_mm = msg->pose.position.x;
+    const double y_mm = msg->pose.position.y;
+
     const double x_m = x_mm * MM_TO_M;
     const double y_m = y_mm * MM_TO_M;
 
@@ -53,6 +58,9 @@ private:
     out.header = msg->header;
     out.header.frame_id = output_frame_;
 
+    // Achsen-Zuordnung für diesen Aufbau:
+    // - Vision y -> Robot X (vor/zurück)
+    // - Vision x -> Robot Y, gespiegelt (Vorzeichen -)
     out.pose.position.x = origin_x_m_ + y_m;
     out.pose.position.y = origin_y_m_ - x_m;
     out.pose.position.z = 0.0;

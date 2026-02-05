@@ -25,6 +25,8 @@ static const std::vector<double> startJoints =
   0.0,  deg2rad(-45.0),  0.0,  deg2rad(-135.0),  0.0,  deg2rad(90.0),  deg2rad(45.0)
 };
 
+// Wenn diese Gelenkpossen angepasst werden, muss der Coordinate_Translator auch angerpasst werden!
+// Die Markieungen auf dem Labortisch sind auf diese Pose kalibriert.
 static const std::vector<double> observerJoints =
 {
   0.0,  deg2rad(-20.0),  0.0,  deg2rad(-150.0),  0.0,  deg2rad(130.0),  deg2rad(45.0)
@@ -43,7 +45,7 @@ PandaCliController::PandaCliController()
   // --- MoveIt Basis-Konfiguration (Pilz Planner, PTP als Standard) ---
   arm_.setPlanningPipelineId("pilz_industrial_motion_planner");
   arm_.setPlannerId("PTP");
-  arm_.setPlanningTime(20.0); // Das Ablegen der Süßigkeiten benötigt mehr Zeit 20 sec passen aber für Plannen der Trajektorie
+  arm_.setPlanningTime(20.0); // Längere Planungszeit für komplexe Bewegungen
 
   // Konservatives Scaling für stabile, reproduzierbare Bewegungen
   arm_.setMaxVelocityScalingFactor(0.05);
@@ -129,10 +131,9 @@ void PandaCliController::closeGripper()
 
 void PandaCliController::closeGripperWithWidth(double width_mm)
 {
-  // Ziel-Spaltmaß aus Objektbreite + Sicherheitszuschlag (einfaches Greifmodell)
+  // Ziel-Spaltmaß aus Objektbreite
   const double object_width_m = width_mm / 1000.0;
-  const double safety_margin = 0.002; // 2 mm
-  const double target_gap = object_width_m + safety_margin;
+  const double target_gap = object_width_m;
   const double finger_joint = target_gap / 2.0;
 
   // Beide Finger symmetrisch setzen
@@ -238,7 +239,7 @@ geometry_msgs::Pose PandaCliController::makePlacePose(int goalpose_id, bool abov
 
   if (is_jackal)
   {
-    // TODO: reale Übergabepose für Jackal anpassen (Drop-Off-Position zur Rutsche)
+    // TODO: Werte für die spätere Jackal-Ablage anpassen
     pose.position.x = -0.3;
     pose.position.y = -0.6;
   }
@@ -293,7 +294,7 @@ void PandaCliController::printPose()
   auto ps = arm_.getCurrentPose();
   const auto& p = ps.pose.position;
   const auto& o = ps.pose.orientation;
-  const double z_table = p.z - 0.79;  // Tischhöhe abziehen wegen der Simulation in Gazebo (0.79m)
+  const double z_table = p.z; // Bei der Simulation muss die Tischhöhe abgezogen werden (0.79 m)
   ROS_INFO("Pose: x=%.3f y=%.3f z=%.3f", p.x, p.y, z_table);
   ROS_INFO("Ori:  w=%.3f x=%.3f y=%.3f z=%.3f", o.w, o.x, o.y, o.z);
 }
@@ -377,7 +378,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   if (object_data.has_width)
     closeGripperWithWidth(object_data.width_mm);
   else
-  closeGripperWithWidth(20.0); // Milyway und Snicker 20 (22) Maoam 21 (23)
+  closeGripperWithWidth(22.0); // Milyway und Snicker 22 Maoam 23
 
   // 3) Hoch (LIN)
   if (!moveArmToPose(above_pose))

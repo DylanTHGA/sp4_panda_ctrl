@@ -51,7 +51,7 @@
   <joint name="camera_mount_joint" type="fixed">
     <parent link="panda_hand"/>
     <child link="camera_mount"/>
-    <origin xyz="0.063 0.03 -0.01" rpy="0 0 3.1461"/>
+    <origin xyz="0.065 0.03 0.0" rpy="0 0 3.1461"/>
   </joint>
 
   <xacro:sensor_d435 parent="camera_mount">
@@ -100,63 +100,7 @@
   <joint name="table_top_to_work_surface_visual" type="fixed">
     <parent link="table_top"/>
     <child link="work_surface_visual"/>
-    <origin xyz="0.5 0 ${table_height}" rpy="0 0 0"/>
-  </joint>
-
-  <!-- Dropoff markers -->
-  <link name="dropoff_red_default">
-    <visual>
-      <origin xyz="0.0 -0.6 0.791" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.07 0.07 0.002"/>
-      </geometry>
-      <material name="dropoff_red_default_mat">
-        <color rgba="1.0 0.0 0.0 1.0"/>
-      </material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.0 0.0 0.0"/>
-      </geometry>
-    </collision>
-  </link>
-
-  <gazebo reference="dropoff_red_default">
-    <material>Gazebo/Red</material>
-  </gazebo>
-
-  <joint name="table_top_to_dropoff_red_default" type="fixed">
-    <parent link="table_top"/>
-    <child link="dropoff_red_default"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint>
-
-  <link name="dropoff_blue_jackal">
-    <visual>
-      <origin xyz="-0.3 -0.6 0.791" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.07 0.07 0.002"/>
-      </geometry>
-      <material name="dropoff_blue_jackal_mat">
-        <color rgba="0.0 0.0 1.0 1.0"/>
-      </material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.0 0.0 0.0"/>
-      </geometry>
-    </collision>
-  </link>
-  <gazebo reference="dropoff_blue_jackal">
-    <material>Gazebo/Blue</material>
-  </gazebo>
-
-  <joint name="table_top_to_dropoff_blue_jackal" type="fixed">
-    <parent link="table_top"/>
-    <child link="dropoff_blue_jackal"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0.4 0 ${table_height}" rpy="0 0 0"/>
   </joint>
 
 </robot>

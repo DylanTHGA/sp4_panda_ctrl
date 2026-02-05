@@ -58,8 +58,8 @@ private:
   std::string last_sp_state_         = "";
 
   // -------------------- Configuration --------------------
-  double grap_z_  = 0.10; // Greifhöhe über Tisch zum Testen
-  double hover_z_ = 0.30; // Hoverhöhe für die Bildhöhe und Pick-Bewegungen
+  double grap_z_  = 0.015; // Greifhöhe über Tisch zum Testen
+  double hover_z_ = 0.265; // Hoverhöhe für die Bildhöhe und Pick-Bewegungen
 
   geometry_msgs::Quaternion default_orientation_;
 

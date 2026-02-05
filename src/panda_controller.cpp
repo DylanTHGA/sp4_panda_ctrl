@@ -27,7 +27,7 @@ static const std::vector<double> startJoints =
 
 static const std::vector<double> observerJoints =
 {
-  0.0,  deg2rad(-10.0),  0.0,  deg2rad(-135.0),  0.0,  deg2rad(125.0),  deg2rad(45.0)
+  0.0,  deg2rad(-20.0),  0.0,  deg2rad(-150.0),  0.0,  deg2rad(130.0),  deg2rad(45.0)
 };
 
 
@@ -36,7 +36,7 @@ PandaCliController::PandaCliController()
     arm_("panda_arm"),
     hand_("panda_hand")
 {
-  arm_.setPoseReferenceFrame("table_surface");
+  arm_.setPoseReferenceFrame("panda_link0");
   // Expliziter TCP-Link für alle kartesischen Pose-Ziele
   arm_.setEndEffectorLink("panda_hand_tcp");
 

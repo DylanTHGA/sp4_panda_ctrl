@@ -161,6 +161,25 @@ void PandaCliController::handleCommands(const std::string& line)
     return;
   }
 
+  if (cmd == "close_w")
+  {
+    double width_mm;
+    if (!(iss >> width_mm))
+    {
+      ROS_WARN("INPUT_ERROR: close_w width_mm");
+      return;
+    }
+
+    if (width_mm <= 0.0)
+    {
+      ROS_WARN("INPUT_ERROR: close_w width_mm (must be > 0)");
+      return;
+    }
+
+    closeGripperWithWidth(width_mm);
+    return;
+  }
+
   if (cmd == "observerPos")
   {
     moveToObserverPosition();
@@ -240,6 +259,7 @@ void PandaCliController::printHelp()
   [TCP / Gripper]
     open                        - Open the panda hand
     close                       - Close the panda hand
+    close_w width_mm            - Close the panda hand to specified width [mm]
     turn_hand angle             - Rotate wrist joint [deg]
     set_orientation qw qx qy qz - Set default end-effector orientation (quaternion)
 

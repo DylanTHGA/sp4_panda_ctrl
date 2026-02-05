@@ -35,7 +35,7 @@ private:
     double tcp_yaw_deg{45.0};        // yaw around Z [deg]
     bool has_tcp_yaw{false};
 
-    double width_mm{0.0};
+    double width_mm{25.0};
     bool has_width{false};
   };
 
@@ -58,7 +58,7 @@ private:
   std::string last_sp_state_         = "";
 
   // -------------------- Configuration --------------------
-  double grap_z_  = 0.015; // Greifhöhe über Tisch zum Testen
+  double grap_z_  = 0.017; // Greifhöhe über Tisch zum Testen
   double hover_z_ = 0.265; // Hoverhöhe für die Bildhöhe und Pick-Bewegungen
 
   geometry_msgs::Quaternion default_orientation_;

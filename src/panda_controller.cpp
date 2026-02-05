@@ -43,7 +43,7 @@ PandaCliController::PandaCliController()
   // --- MoveIt Basis-Konfiguration (Pilz Planner, PTP als Standard) ---
   arm_.setPlanningPipelineId("pilz_industrial_motion_planner");
   arm_.setPlannerId("PTP");
-  arm_.setPlanningTime(10.0);
+  arm_.setPlanningTime(20.0); // Das Ablegen der Süßigkeiten benötigt mehr Zeit 20 sec passen aber für Plannen der Trajektorie
 
   // Konservatives Scaling für stabile, reproduzierbare Bewegungen
   arm_.setMaxVelocityScalingFactor(0.05);
@@ -377,7 +377,7 @@ void PandaCliController::pickRoutine(const PickJob& object_data)
   if (object_data.has_width)
     closeGripperWithWidth(object_data.width_mm);
   else
-    closeGripper();
+  closeGripperWithWidth(20.0); // Milyway und Snicker 20 (22) Maoam 21 (23)
 
   // 3) Hoch (LIN)
   if (!moveArmToPose(above_pose))

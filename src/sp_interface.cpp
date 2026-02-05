@@ -27,7 +27,7 @@ void PandaCliController::sp4PoseCallback(const geometry_msgs::PoseStamped::Const
   const double angle_rad =
       std::atan2(msg->pose.orientation.z, msg->pose.orientation.w) * 2.0;
   job.tcp_yaw_deg = rad2deg(angle_rad);
-  job.has_tcp_yaw = true;
+  job.has_tcp_yaw = false;  // Werte vom SP4_Bildverarbeiutungssystem passen nicht
 
   // Objektbreite übernehmen (falls vorhanden, einmalig)
   {
@@ -35,7 +35,7 @@ void PandaCliController::sp4PoseCallback(const geometry_msgs::PoseStamped::Const
     if (has_object_width_)
     {
       job.width_mm = object_width_mm_;
-      job.has_width = true;
+      job.has_width = false; // Werte vom SP4_Bildverarbeiutungssystem passen nicht
       has_object_width_ = false;
     }
   }

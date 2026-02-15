@@ -1,9 +1,10 @@
 # SP4-Panda-Control
+## Beschreibung 
+Dieses Repo ermöglicht die Steuerung des **Panda-Greifarms** von Franka Emika unter **ROS-1** über die terminalbasierte Steuerung `panda_cli_control`. Zusätzlich enthält es alle relevanten Dateien und Startskripte, um den Panda Greifarm in der nachgebildeten Laborumgebung der **Technischen Hochschule Georg Agricola** innerhalb der Simulationsumgebung **Gazebo** zu steuern. Der Node `panda_cli_control` dient neben der manuellen Bedienung auch als ROS-basierte Schnittstelle zum SweetPicker System. Dadurch kann der Panda Greifarm als ausführende Roboterkomponente im **SweetPicker-System der THGA** eingesetzt werden und anhand übermittelter Objektinformationen automatisierte **Pick-and-Place-Routinen** ausführen.
 
-Dieses ROS Paket steuert den **Franka Emika Panda** Greifarm unter **ROS 1 Noetic**.
+---
 
-Im Mittelpunkt steht der Node `panda_cli_control`. Er bietet eine terminalbasierte Bedienung über Textkommandos und dient gleichzeitig als Anbindung an das **SweetPicker System**. Dazu nimmt er die über ROS Topics veröffentlichten Informationen entgegen und setzt sie in Bewegungsaufträge um. So kann das SweetPicker System den Panda als ausführenden Manipulator verwenden und Pick and Place Abläufe automatisch starten.
-
+![alt text](/sp4_panda_ctrl/images/sp4xpanda.png)
 ---
 
 ## Voraussetzungen

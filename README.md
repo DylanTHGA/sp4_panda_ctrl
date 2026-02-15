@@ -1,11 +1,8 @@
-# SP3-Panda-Control
+# SP4-Panda-Control
 
-Dieses ROS-Paket dient der Steuerung des Franka Emika Panda Cobots mit ROS 1 Noetic unter Ubuntu 20.04.
+Dieses ROS Paket steuert den **Franka Emika Panda** Greifarm unter **ROS 1 Noetic**.
 
-Es nutzt das `MoveIT Framework` für die Bewegungsplanung und enthält einen ausführbaren Node
-
-- `panda_cli_control`: Interaktives Kommandozeilen-Tool zur Steuerung des Roboterarms  
-
+Im Mittelpunkt steht der Node `panda_cli_control`. Er bietet eine terminalbasierte Bedienung über Textkommandos und dient gleichzeitig als Anbindung an das **SweetPicker System**. Dazu nimmt er die über ROS Topics veröffentlichten Informationen entgegen und setzt sie in Bewegungsaufträge um. So kann das SweetPicker System den Panda als ausführenden Manipulator verwenden und Pick and Place Abläufe automatisch starten.
 
 ---
 
@@ -13,184 +10,278 @@ Es nutzt das `MoveIT Framework` für die Bewegungsplanung und enthält einen aus
 
 ### System
 
-- **Betriebssystem**: Ubuntu 20.04 (Focal)  
-- **ROS-Version**: ROS Noetic (ROS 1)  
-- **Roboter**: Franka Emika Panda  
-- **Kamera**: Intel RealSense D435
+- Betriebssystem: Ubuntu 20.04 (Focal)
+- ROS-Version: ROS Noetic (ROS 1)
+- Roboter: Franka Emika Panda
+- Kamera: Intel RealSense D435
 
-### Softwareabhängigkeiten und ROS-Pakete
+### Softwareabhängigkeiten und ROS Pakete
 
-| Paket                | Version | Repository / Anleitung |
-|----------------------|---------|-------------------------|
-| **libfranka**        | 0.9.2   | https://github.com/frankarobotics/libfranka/tree/0.9.2 |
-| **franka_ros**       | 0.10.1  | https://github.com/frankaemika/franka_ros/tree/0.10.1 |
-| **MoveIt** (panda_moveit_config) | 0.8.1 | https://github.com/moveit/panda_moveit_config/tree/0.8.1 |
-| **gazebo_ros_pkgs**  | 2.9.3   | https://classic.gazebosim.org/tutorials?tut=ros_installing |
+| Paket | Version | Repository |
+|------|--------|------------|
+| libfranka | 0.9.2 | https://github.com/frankaemika/libfranka/tree/0.9.2 |
+| franka_ros | 0.10.1 | https://github.com/frankaemika/franka_ros/tree/0.10.1 |
+| MoveIt (panda_moveit_config) | 0.8.1 | https://github.com/moveit/panda_moveit_config/tree/0.8.1 |
+| gazebo_ros_pkgs | 2.9.3 | https://classic.gazebosim.org |
 
-> Verwende exakt die oben genannten Versionen, um Kompatibilitätsprobleme zu vermeiden.
+---
 
 ## Installation
 
 ### 1. Catkin Workspace erstellen
 
-1. Workspace-Ordner anlegen:  
-   ```bash
-   mkdir -p ~/catkin_ws/src 
-   ```
-2. Workspace initialisieren:  
-   ```bash
-   cd ~/catkin_ws/src  
-   catkin_init_workspace
-   ```
-3. Workspace kompilieren:  
-   ```bash
-   cd ~/catkin_ws  
-   catkin_make
-   ```
+```bash
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
+catkin_init_workspace
+cd ~/catkin_ws
+catkin_make
+```
 
-4. `.bashrc` anpassen:  
-   Öffne die Datei:  
-  ```bash
-   gedit ~/.bashrc 
-   ```
-   Und füge folgende Zeile am Ende hinzu:  
-   `source ~/catkin_ws/devel/setup.bash`
+ROS Umgebung dauerhaft einbinden:
+
+```bash
+gedit ~/.bashrc
+```
+
+Am Ende ergänzen:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+```
 
 ---
 
-### 2. Installation von **libfranka**
-
-#### 2.1 Abhängigkeiten installieren
+### 2. Installation von libfranka
 
 ```bash
-sudo apt-get update  
-sudo apt-get install -y build-essential cmake git libpoco-dev libeigen3-dev libfmt-dev
+sudo apt update
+sudo apt install -y build-essential cmake git \
+  libpoco-dev libeigen3-dev libfmt-dev
 ```
 
-#### 2.2 Vorherige Installationen entfernen
+Alte Installationen entfernen:
 
 ```bash
-sudo apt-get remove "*libfranka*"
+sudo apt remove "*libfranka*"
 ```
 
-#### 2.3 Repository klonen
+Repository klonen und Version auswählen:
 
 ```bash
-git clone --recurse-submodules https://github.com/frankaemika/libfranka.git  
+git clone --recurse-submodules https://github.com/frankaemika/libfranka.git
 cd libfranka
+git checkout 0.9.2
+git submodule update
 ```
 
-#### 2.4 Version auswählen
+Kompilieren:
 
 ```bash
-git tag -l                 
-git checkout 0.9.2       
-git submodule update    
-```
-
-#### 2.5 Kompilieren
-
-```bash
-mkdir build  
-cd build  
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/opt/openrobots/lib/cmake -DBUILD_TESTS=OFF ..  
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..
 make
 ```
 
 ---
 
-### 3. Installation von **franka_ros**
+### 3. Installation von franka_ros
 
 ```bash
-cd ~/catkin_ws/src  
-git clone --recursive https://github.com/frankaemika/franka_ros  
-cd franka_ros  
-git checkout 0.10.1  
+cd ~/catkin_ws/src
+git clone --recursive https://github.com/frankaemika/franka_ros.git
+cd franka_ros
+git checkout 0.10.1
 git submodule update
 ```
 
-#### 3.1 ROS-Abhängigkeiten installieren
+ROS Abhängigkeiten installieren:
 
 ```bash
 cd ~/catkin_ws
-rosdep init  
-rosdep update --include-eol-distros  
-rosdep install --from-paths src --ignore-src --rosdistro noetic -y --skip-keys libfranka  
-rosdep install --from-paths . --ignore-src --rosdistro noetic -y
+rosdep init
+rosdep update --include-eol-distros
+rosdep install --from-paths src --ignore-src \
+  --rosdistro noetic -y --skip-keys libfranka
 ```
 
-#### 3.2 Kompilieren
+Kompilieren:
 
 ```bash
-cd ~/catkin_ws  
-catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/student/libfranka/build  
-source devel/setup.sh
-```
-
----
-
-### 4. Installation von **gazebo_ros_pkgs**
-
-```bash
-cd ~/catkin_ws/src  
-sudo apt-get install -y ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-ros-control
+catkin_make -DCMAKE_BUILD_TYPE=Release \
+  -DFranka_DIR:PATH=~/libfranka/build
+source devel/setup.bash
 ```
 
 ---
 
-### 5. Installation von **moveit**
+### 4. Installation von Gazebo
 
 ```bash
-cd ~/catkin_ws/src  
+sudo apt install -y \
+  ros-noetic-gazebo-ros-pkgs \
+  ros-noetic-gazebo-ros-control
+```
+
+---
+
+### 5. Installation von MoveIt
+
+```bash
+cd ~/catkin_ws/src
 git clone --recursive https://github.com/moveit/panda_moveit_config.git
 ```
 
-### 6. Klonenen des SP3-Panda-Ctrl Packet
+---
+
+### 6. Klonen des SP4 Panda Control Pakets
 
 ```bash
-cd ~/catkin_ws/src  
-git clone --recursive https://github.com/DylanTHGA/sp3_panda_ctrl.git
+cd ~/catkin_ws/src
+git clone --recursive https://github.com/DylanTHGA/sp4_panda_ctrl.git
 ```
 
-## Änderungen zur Integration des Panda-Arms in die Simulation
+---
 
-### 1.1 Einbinden des SP3_PAnda_Control URDF-Verzeichnis 
-- Das URDF-Verzeichnis vom SP3_Panda_CTRL Packet muss im `franka_ros/franka_description/ -Verzeichnis` enthalten sein. 
-- Der gesamte Ordner kann in das `franka_ros/franka_description/ -Verzeichnis` verschoben werden.
-### 1.2 Austausch der `panda.urdf.xacro` Datei 
-- Die Datei `franka_ros/franka_description/robots/panda.urdf.xacro` muss ersetzt werden durch die `sp3_control/urdf/panda_urdf.xacro` Datei
-### 1.2 Änderung des `z_offset` in der `panda.launch` 
-- In der Datei franka_ros/franka_gazebo/launch/panda.launch muss der Parameter `z_offset` von `0.0` auf `0.79` geändert werden.
+## Startskripte zur Systeminitialisierung
 
-## Verwendung des `panda_cli_control` Nodes zur Steuerung des Panda-Greifarms
+Es gibt zwei Startskripte: 
+### Simulation: `start_panda_gazebo_sp.sh`
 
-### Starten der Simulationsumgebung und RViz
+Start:
+
+```bash
+chmod +x start_panda_gazebo_sp.sh
+./start_panda_gazebo_sp.sh
+```
+
+Damit werden gestartet:
+
+- `roslaunch sp4_panda_ctrl panda_demo_gazebo.launch`  
+  Gazebo, RViz und MoveIt in der Simulationskonfiguration
+- `rosrun sp4_panda_ctrl panda_cli_control`  
+  CLI Steuerung und SweetPicker Anbindung
+- `coordinate_translator`  
+  Umrechnung SweetPicker Objektkoordinaten in eine Roboterzielpose
+
+## Kamera-Topic für Bilddaten
+
+Das simulierte Kamerabild ist unter folgendem ROS-Topic verfügbar:
+
+```text
+/image_raw
+```
+---
+
+### Realbetrieb: `start_panda_real_sp.sh`
+
+#### Voraussetzungen
+
+
+- Der Roboter muss im **Automatikbetrieb (Automatic Mode)** laufen
+-  **FCI muss in Franka Desk aktiviert sein**
+- Die **Robot-IP** muss erreichbar sein (z. B. `172.16.0.2`)
+
+#### Start
+
+Zuerst die Roboteranbindung starten:
+
+```bash
+roslaunch panda_moveit_config franka_control.launch robot_ip:=172.16.0.2
+```
+Anschließend das Startskript ausführen:
+
+```bash
+chmod +x start_panda_real_sp.sh
+./start_panda_real_sp.sh
+```
+
+Damit werden gestartet:
+
+- `rosrun sp4_panda_ctrl panda_cli_control`  
+  CLI Steuerung und SweetPicker Anbindung
+- `coordinate_translator`  
+  Umrechnung SweetPicker Objektkoordinaten in eine Roboterzielpose
+
+---
+
+## Verwendung des `panda_cli_control` Nodes zur Steuerung des Panda Greifarms
+
+### Start über das Startskript
+
+```bash
+chmod +x start_panda_gazebo_sp.sh
+./start_panda_gazebo_sp.sh
+```
+
+### Manuelles Starten einzelner Komponenten
+
+Simulationsumgebung und RViz:
 
 ```bash
 roslaunch panda_moveit_config demo_gazebo.launch
 ```
 
-Dieser Befehl startet die Simulationsumgebung in Gazebo sowie die RViz-Oberfläche mit MoveIt-Unterstützung.
-
----
-
-### Starten der CLI-Steuerung des Roboters
+CLI Steuerung:
 
 ```bash
-rosrun sp3_panda_ctrl panda_cli_control
+rosrun sp4_panda_ctrl panda_cli_control
 ```
-Mit diesem Node kann der Panda-Greifarm über eine Kommandozeile gesteuert werden.  
-Befehle wie `move_pose`, `pick_xy`, `open_gripper`. sind darüber ausführbar.  
-> Durch Eingabe von `help` im Terminal werden alle verfügbaren Kommandos angezeigt.
+Coordinate Translator:
 
----
-
-### Kamera-Topic für Bilddaten
-
-Das aktuelle Kamerabild ist unter folgendem ROS-Topic verfügbar:
-
-```
-/image_raw
+```bash
+rosrun sp4_panda_ctrl coordinate_translator
 ```
 
-> Dieses Topic kann z. B. mit `rqt_image_view` oder in RViz abonniert werden.
+
+## CLI Befehle (`panda_cli_control`)
+
+Nach dem Start von `panda_cli_control` können die folgenden Kommandos direkt im Terminal eingegeben werden.  
+Mit `help` wird die Übersicht ebenfalls im Terminal ausgegeben.
+
+### Allgemein
+
+| Befehl | Parameter | Beschreibung |
+|---|---|---|
+| `help` | – | Zeigt alle Befehle an |
+| `quit` | – | Beendet den Node und fährt ROS herunter |
+| `stop` | – | Stoppt eine laufende Bewegung |
+
+### Bewegungen
+
+| Befehl | Parameter | Beschreibung |
+|---|---|---|
+| `mode` | `ptp\|lin` | Setzt den Bewegungsmodus für `move_to` |
+| `move_to` | `x y z` | Bewegt den TCP zu `(x,y,z)` in Metern. Orientierung bleibt wie aktuell |
+| `set_joints` | `j1 j2 j3 j4 j5 j6 j7` | Setzt alle 7 Gelenkwinkel in Grad |
+| `pick` | `x y [angle_deg]` | Startet Pick Routine bei `(x,y)`. Optional TCP Yaw in Grad |
+
+> Hinweis: Während eine Pick Routine läuft werden alle Befehle außer `stop` blockiert.
+
+### TCP und Greifer
+
+| Befehl | Parameter | Beschreibung |
+|---|---|---|
+| `open` | – | Öffnet den Greifer |
+| `close` | – | Schließt den Greifer vollständig |
+| `close_w` | `width_mm` | Schließt den Greifer auf eine definierte Öffnungsweite in mm |
+| `turn_hand` | `angle_deg` | Dreht das Handgelenk um `angle_deg` Grad |
+| `set_orientation` | `qw qx qy qz` | Setzt die Default Orientierung als Quaternion |
+
+### Statusausgaben
+
+| Befehl | Parameter | Beschreibung |
+|---|---|---|
+| `print_pose` | – | Gibt die aktuelle TCP Pose aus |
+| `print_joints` | – | Gibt die aktuellen Gelenkwinkel aus |
+
+### Vordefinierte Posen
+
+| Befehl | Parameter | Beschreibung |
+|---|---|---|
+| `startPos` | – | Fährt in die vordefinierte Startpose |
+| `observerPos` | – | Fährt in die vordefinierte Beobachterpose |
+| `placePos` | – | Fährt in die vordefinierte Ablagepose |
+
+
+

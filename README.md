@@ -4,7 +4,7 @@ Dieses Repo ermöglicht die Steuerung des **Panda-Greifarms** von Franka Emika u
 
 ---
 
-![alt text](/sp4_panda_ctrl/images/sp4xpanda.png)
+![alt text](/images/sp4xpanda.png)
 ---
 
 ## Voraussetzungen
